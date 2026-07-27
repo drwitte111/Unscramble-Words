@@ -364,12 +364,174 @@ nav {
 /* BOTTOM SAFE AREA */
 .bottom-spacer { height: max(1.5rem, env(safe-area-inset-bottom)); }
 
+/* TAB NAV */
+.tab-nav {
+  display: flex; gap: 0.25rem; padding: 0 1.25rem;
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border);
+  background: rgba(22,35,60,0.96);
+}
+.tab-btn {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--muted); font-family: 'Inter', sans-serif;
+  font-size: 0.82rem; font-weight: 500; padding: 0.75rem 1rem;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--cream); }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* PAGE SECTIONS */
+.page-section { display: none; }
+.page-section.active { display: block; }
+
+/* ── SOLVER TAB ─── */
+.solver-hero { text-align: center; margin-bottom: 1.5rem; }
+.solver-hero-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(1.3rem, 4vw, 1.9rem);
+  font-weight: 600; color: var(--cream);
+  letter-spacing: -0.02em; margin-bottom: 0.3rem;
+}
+.solver-hero-title span { color: var(--amber); }
+.solver-hero-sub { font-size: 0.8rem; color: var(--muted); }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius2);
+  padding: 2rem 1.5rem;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--navy2);
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--amber);
+  background: rgba(255,183,77,0.05);
+}
+.upload-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.upload-label { font-size: 0.9rem; color: var(--cream); margin-bottom: 0.25rem; font-weight: 500; }
+.upload-hint { font-size: 0.75rem; color: var(--muted); }
+
+/* BOARD PREVIEW */
+.board-preview-wrap {
+  display: none; margin-top: 1rem;
+}
+.board-preview-wrap.visible { display: block; }
+.board-preview-img {
+  width: 100%; border-radius: var(--radius);
+  border: 1px solid var(--border); max-height: 220px; object-fit: contain;
+  background: var(--navy3);
+}
+
+/* BOARD GRID */
+.board-grid-wrap { margin-top: 1rem; overflow-x: auto; }
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 2px; min-width: 480px;
+  background: var(--navy3); padding: 4px; border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.board-cell {
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(0.5rem, 1.2vw, 0.75rem);
+  font-weight: 700; border-radius: 2px;
+  position: relative; cursor: pointer;
+  transition: all 0.1s; user-select: none;
+}
+.board-cell.empty { background: #f8f6f1; color: #999; font-size: clamp(0.35rem, 0.8vw, 0.55rem); font-weight: 400; }
+.board-cell.played { background: #3B5998; color: white; }
+.board-cell.played.blank-tile { background: #5B79B8; color: #ffe; }
+.board-cell.premium-2w { background: #B8CCE4; color: #4472C4; }
+.board-cell.premium-3w { background: #E6B0C3; color: #9A2050; }
+.board-cell.premium-2l { background: #C6EFCE; color: #276221; }
+.board-cell.premium-3l { background: #8DB4D9; color: #1F4E79; }
+.board-cell.center { background: #404040; color: white; }
+.board-cell.scanning { animation: scanPulse 0.8s ease-in-out infinite; }
+@keyframes scanPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* RACK INPUT */
+.rack-row {
+  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+.rack-input {
+  flex: 1; min-width: 200px;
+  background: var(--navy3); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 0 1rem;
+  color: var(--amber); font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  min-height: 48px; outline: none; transition: border-color 0.15s;
+}
+.rack-input:focus { border-color: var(--amber); }
+.rack-input::placeholder { color: rgba(255,183,77,0.25); font-weight: 400; letter-spacing: 0; font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: none; }
+
+.btn-solve {
+  background: var(--amber); border: none; border-radius: var(--radius);
+  color: var(--navy); font-family: 'Inter', sans-serif;
+  font-size: 0.9rem; font-weight: 700;
+  padding: 0 1.4rem; cursor: pointer;
+  min-height: 48px; transition: all 0.15s;
+}
+.btn-solve:hover { background: #ffc84d; }
+.btn-solve:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* STATUS */
+.solver-status {
+  font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem;
+  min-height: 1.2em;
+}
+.solver-status.error { color: var(--red); }
+.solver-status.success { color: var(--green); }
+
+/* MOVE RESULTS */
+.moves-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;
+}
+.moves-title { font-size: 0.9rem; font-weight: 600; }
+.moves-meta { font-size: 0.75rem; color: var(--muted); }
+
+.move-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.move-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--navy3); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.6rem 0.85rem;
+  cursor: pointer; transition: all 0.12s;
+}
+.move-item:hover { border-color: var(--amber); background: rgba(255,183,77,0.06); }
+.move-item.selected { border-color: var(--amber); background: rgba(255,183,77,0.1); }
+.move-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem; font-weight: 700; color: var(--amber);
+  min-width: 2.5rem;
+}
+.move-word {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem; font-weight: 600; color: var(--cream);
+  letter-spacing: 0.05em;
+}
+.move-detail { font-size: 0.72rem; color: var(--muted); margin-left: auto; text-align: right; }
+.move-bingo { color: var(--amber); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* PROGRESS BAR */
+.progress-bar-wrap { margin-top: 0.75rem; height: 3px; background: var(--navy3); border-radius: 2px; }
+.progress-bar { height: 100%; background: var(--amber); border-radius: 2px; width: 0%; transition: width 0.1s; }
+
 /* RESPONSIVE */
 @media (max-width: 480px) {
   .site-wrap { padding: 1rem 1rem; }
   .input-row { flex-direction: column; }
   .btn-unscramble { min-width: unset; }
   .filter-group { min-width: 100%; }
+  .rack-row { flex-direction: column; }
+  .rack-input { min-width: unset; width: 100%; }
 }
 </style>
 </head>
@@ -398,9 +560,16 @@ nav {
     <span class="nav-word-count" id="nav-word-count"></span>
   </div>
 </nav>
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('unscramble')">Unscrambler</button>
+  <button class="tab-btn" onclick="switchTab('solver')">Board Solver</button>
+</div>
 
 <!-- MAIN -->
 <div class="site-wrap">
+
+<!-- ══ UNSCRAMBLE TAB ══ -->
+<div class="page-section active" id="tab-unscramble">
 
   <div class="hero">
     <h1 class="hero-title">Word <span>Unscrambler</span></h1>
@@ -413,13 +582,16 @@ nav {
     <div class="input-row">
       <input
         type="text" id="main-input" class="main-input"
-        placeholder="e.g. TRAIPSE or TRAIS??"
+        placeholder="e.g. TRAIPSE or TRAIS????"
         maxlength="15" autocomplete="off" autocorrect="off"
         autocapitalize="characters" spellcheck="false"
         inputmode="text"
       >
       <button class="btn-unscramble" id="btn-go" onclick="runSearch()">Unscramble</button>
     </div>
+    <button class="btn-options" id="btn-clear" onclick="clearAll()" style="color:rgba(239,83,80,0.7);border-color:rgba(239,83,80,0.3);margin-top:0.4rem;">
+      ✕ Clear all
+    </button>
 
     <button class="btn-options" id="btn-opts" onclick="toggleOptions()">
       Options &amp; Filters <span class="chevron">▾</span>
@@ -510,6 +682,76 @@ nav {
   </div>
 
   <div class="bottom-spacer"></div>
+
+</div><!-- /tab-unscramble -->
+
+<!-- ══ SOLVER TAB ══ -->
+<div class="page-section" id="tab-solver">
+
+  <div class="solver-hero">
+    <h2 class="solver-hero-title">Board <span>Solver</span></h2>
+    <p class="solver-hero-sub">Upload an NYT Crosswords in-progress screenshot — enter your rack — find the best move</p>
+  </div>
+
+  <!-- UPLOAD CARD -->
+  <div class="card">
+    <div class="card-label">Screenshot</div>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" accept="image/png,image/jpeg" id="board-file-input" onchange="handleFileUpload(event)">
+      <div class="upload-icon">📷</div>
+      <div class="upload-label">Tap to upload screenshot</div>
+      <div class="upload-hint">NYT Crosswords in-progress board &bull; same device every time</div>
+    </div>
+    <div class="board-preview-wrap" id="board-preview-wrap">
+      <img class="board-preview-img" id="board-preview-img" src="" alt="Board preview">
+    </div>
+    <div class="progress-bar-wrap" id="scan-progress-wrap" style="display:none">
+      <div class="progress-bar" id="scan-progress-bar"></div>
+    </div>
+    <div class="solver-status" id="solver-status"></div>
+  </div>
+
+  <!-- BOARD GRID CARD -->
+  <div class="card" id="board-card" style="display:none">
+    <div class="card-label">Detected Board — tap any cell to correct a letter</div>
+    <div class="board-grid-wrap">
+      <div class="board-grid" id="board-grid"></div>
+    </div>
+    <div style="margin-top:0.6rem; font-size:0.7rem; color:var(--muted);">
+      <span style="display:inline-block;width:10px;height:10px;background:#3B5998;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Played &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;background:#B8CCE4;border-radius:2px;margin-right:4px;vertical-align:middle"></span>2W &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;background:#E6B0C3;border-radius:2px;margin-right:4px;vertical-align:middle"></span>3W &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;background:#C6EFCE;border-radius:2px;margin-right:4px;vertical-align:middle"></span>2L &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;background:#8DB4D9;border-radius:2px;margin-right:4px;vertical-align:middle"></span>3L
+    </div>
+  </div>
+
+  <!-- RACK + SOLVE -->
+  <div class="card" id="rack-card" style="display:none">
+    <div class="card-label">Your Rack</div>
+    <div class="rack-row">
+      <input type="text" class="rack-input" id="rack-input"
+        placeholder="Enter your 7 letters (use ? for blank)"
+        maxlength="7" autocomplete="off" autocorrect="off"
+        autocapitalize="characters" spellcheck="false">
+      <button class="btn-solve" id="btn-solve" onclick="runSolver()">Find Best Moves</button>
+    </div>
+    <div class="solver-status" id="rack-status"></div>
+  </div>
+
+  <!-- MOVE RESULTS -->
+  <div class="card" id="moves-card" style="display:none">
+    <div class="moves-header">
+      <div class="moves-title" id="moves-title">Best Moves</div>
+      <div class="moves-meta" id="moves-meta"></div>
+    </div>
+    <div class="move-list" id="move-list"></div>
+  </div>
+
+  <div class="bottom-spacer"></div>
+
+</div><!-- /tab-solver -->
+
 </div><!-- /site-wrap -->
 
 <script>
@@ -566,6 +808,23 @@ function toggleAbout() {
 
 function setError(msg) {
   document.getElementById('error-msg').textContent = msg;
+}
+
+function clearAll() {
+  document.getElementById('main-input').value = '';
+  document.getElementById('f-prefix').value = '';
+  document.getElementById('f-suffix').value = '';
+  document.getElementById('f-must').value = '';
+  document.getElementById('f-exclude').value = '';
+  posConstraints = [];
+  renderPosGrid();
+  setError('');
+  document.getElementById('results-section').classList.remove('visible');
+  document.getElementById('word-definition').classList.remove('visible');
+  // Close options panel
+  document.getElementById('options-panel').classList.remove('open');
+  document.getElementById('btn-opts').classList.remove('active');
+  document.getElementById('main-input').focus();
 }
 
 // ── POSITION CONSTRAINTS ──────────────────────────────────────────────────────
@@ -627,7 +886,7 @@ function runSearch() {
   const letters = raw.replace(/[?*]/g, '').split('');
 
   if (letters.length + blanks > 15) { setError('Maximum 15 letters (including blanks).'); return; }
-  if (blanks > 2) { setError('Maximum 2 blank tiles.'); return; }
+  if (blanks > 4) { setError('Maximum 4 blank tiles.'); return; }
 
   // Filters
   const prefix  = document.getElementById('f-prefix').value.trim().toUpperCase();
@@ -780,6 +1039,726 @@ document.getElementById('pos-letter-val').addEventListener('keydown', e => {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadDictionary();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    if (el.textContent.toLowerCase().includes(tab === 'unscramble' ? 'unscramb' : 'board')) {
+      el.classList.add('active');
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BOARD SCANNER — NYT Crosswords (same device, 1206×2622 screenshots)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Calibrated grid for 1206×2622 NYT Crosswords screenshots
+const GRID = {
+  rowStarts: [320,397,474,551,628,705,782,860,937,1014,1091,1168,1245,1323,1400],
+  colStarts: [27,105,182,259,336,413,490,568,645,722,799,876,953,1031,1108],
+  cellW: 77, cellH: 70
+};
+
+// WWF/NYT Crosswords board premium square layout (0-indexed, standard layout)
+const PREMIUM = (() => {
+  const b = Array.from({length:15}, () => Array(15).fill(''));
+  // 3W
+  [[0,0],[0,7],[0,14],[7,0],[7,14],[14,0],[14,7],[14,14]].forEach(([r,c])=>b[r][c]='3W');
+  // 2W
+  [[1,1],[2,2],[3,3],[4,4],[10,10],[11,11],[12,12],[13,13],
+   [1,13],[2,12],[3,11],[4,10],[10,4],[11,3],[12,2],[13,1]].forEach(([r,c])=>b[r][c]='2W');
+  // 3L
+  [[1,5],[1,9],[5,1],[5,5],[5,9],[5,13],[9,1],[9,5],[9,9],[9,13],[13,5],[13,9],
+   [0,2],[0,12],[2,0],[2,14],[12,0],[12,14],[14,2],[14,12]].forEach(([r,c])=>b[r][c]='3L');
+  // 2L
+  [[0,3],[0,11],[2,6],[2,8],[3,0],[3,7],[3,14],[6,2],[6,6],[6,8],[6,12],
+   [7,3],[7,11],[8,2],[8,6],[8,8],[8,12],[11,0],[11,7],[11,14],
+   [12,6],[12,8],[14,3],[14,11]].forEach(([r,c])=>b[r][c]='2L');
+  b[7][7] = 'CT'; // center
+  return b;
+})();
+
+// Tile values (Words With Friends scoring)
+const WWF_VALUES = {
+  A:1,B:4,C:4,D:2,E:1,F:4,G:3,H:3,I:1,J:10,K:5,L:2,M:4,
+  N:2,O:1,P:4,Q:10,R:1,S:1,T:1,U:2,V:5,W:4,X:8,Y:3,Z:10
+};
+
+let boardState = Array.from({length:15}, () => Array(15).fill(null)); // null=empty, letter=played
+let solverCanvas = null;
+let solverCtx = null;
+let selectedMoveIdx = -1;
+
+// ── FILE UPLOAD & SCAN ─────────────────────────────────────────────────────────
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => processImage(img);
+    img.src = e.target.result;
+    // Show preview
+    document.getElementById('board-preview-img').src = e.target.result;
+    document.getElementById('board-preview-wrap').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag and drop
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const event = { target: { files: [file] } };
+    handleFileUpload(event);
+  }
+});
+
+async function processImage(img) {
+  setSolverStatus('Scanning board…');
+  showProgress(true, 0);
+
+  // Draw to offscreen canvas
+  solverCanvas = document.createElement('canvas');
+  solverCanvas.width = img.naturalWidth;
+  solverCanvas.height = img.naturalHeight;
+  solverCtx = solverCanvas.getContext('2d');
+  solverCtx.drawImage(img, 0, 0);
+
+  // Validate dimensions
+  if (img.naturalWidth !== 1206 || img.naturalHeight !== 2622) {
+    setSolverStatus(`⚠ Expected 1206×2622 but got ${img.naturalWidth}×${img.naturalHeight}. Results may be inaccurate.`, 'error');
+  }
+
+  // Scan all 225 cells
+  boardState = Array.from({length:15}, () => Array(15).fill(null));
+  const total = 15 * 15;
+  let scanned = 0;
+
+  for (let ri = 0; ri < 15; ri++) {
+    for (let ci = 0; ci < 15; ci++) {
+      const letter = readTile(ri, ci);
+      boardState[ri][ci] = letter;
+      scanned++;
+      if (scanned % 15 === 0) showProgress(true, scanned / total);
+      // Yield to UI every row
+      if (ci === 14) await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  showProgress(false);
+  const tileCount = boardState.flat().filter(Boolean).length;
+  setSolverStatus(`Found ${tileCount} played tile${tileCount !== 1 ? 's' : ''}${tileCount === 0 ? ' — board appears empty or calibration needs adjustment' : ''}`, tileCount > 0 ? 'success' : 'error');
+
+  renderBoardGrid();
+  document.getElementById('board-card').style.display = '';
+  document.getElementById('rack-card').style.display = '';
+  document.getElementById('moves-card').style.display = 'none';
+}
+
+function readTile(ri, ci) {
+  const ry = GRID.rowStarts[ri];
+  const cx = GRID.colStarts[ci];
+  const imgData = solverCtx.getImageData(cx, ry, GRID.cellW, GRID.cellH);
+  const d = imgData.data;
+
+  // Count dark blue pixels (played tile: R<65, G<130, B>100)
+  let darkBlue = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] < 65 && d[i+2] > 100) darkBlue++;
+  }
+  if (darkBlue < 200) return null; // not a played tile
+
+  // Extract letter via white pixel analysis (letter is white on dark blue)
+  // White pixels: R>180, G>180, B>180 in the letter area (skip top-right score)
+  const letterPixels = [];
+  const cellW = GRID.cellW, cellH = GRID.cellH;
+  for (let py = 5; py < 66; py++) {
+    for (let px = 5; px < 72; px++) {
+      // Skip score superscript area (top-right corner)
+      if (py < 12 && px > 40) continue;
+      const idx = (py * cellW + px) * 4;
+      if (d[idx] > 180 && d[idx+1] > 180 && d[idx+2] > 180) {
+        letterPixels.push([px, py]);
+      }
+    }
+  }
+
+  if (letterPixels.length < 20) return null;
+
+  // Get bounding box of white pixels
+  const xs = letterPixels.map(p=>p[0]);
+  const ys = letterPixels.map(p=>p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const w = x1-x0+1, h = y1-y0+1;
+
+  // Create a descriptor from pixel density pattern
+  // Divide into a 5x5 grid and count white pixels in each zone
+  const zones = Array(25).fill(0);
+  for (const [px, py] of letterPixels) {
+    const zx = Math.min(4, Math.floor((px-x0)/Math.max(1,w)*5));
+    const zy = Math.min(4, Math.floor((py-y0)/Math.max(1,h)*5));
+    zones[zy*5+zx]++;
+  }
+
+  // Normalize
+  const total = letterPixels.length;
+  const norm = zones.map(z => z/total);
+
+  // Classify using hardcoded features learned from calibration
+  return classifyLetter(norm, w, h, total, letterPixels, x0, y0);
+}
+
+function classifyLetter(zones, w, h, total, pixels, x0, y0) {
+  // Aspect ratio: wide letters vs tall vs square
+  const ratio = w / Math.max(1, h);
+
+  // Horizontal cross-section analysis: count white pixels per row band
+  const bands = Array(10).fill(0);
+  for (const [px, py] of pixels) {
+    const band = Math.min(9, Math.floor((py-y0)/Math.max(1,h)*10));
+    bands[band]++;
+  }
+  const bandNorm = bands.map(b => b/Math.max(1,total));
+
+  // Vertical cross-section
+  const vbands = Array(10).fill(0);
+  for (const [px, py] of pixels) {
+    const vb = Math.min(9, Math.floor((px-x0)/Math.max(1,w)*10));
+    vbands[vb]++;
+  }
+  const vbandNorm = vbands.map(b => b/Math.max(1,total));
+
+  // Symmetry measures
+  const hSym = bands.slice(0,5).reduce((s,v,i) => s + Math.abs(v-bands[9-i]), 0) / total;
+  const vSym = vbands.slice(0,5).reduce((s,v,i) => s + Math.abs(v-vbands[9-i]), 0) / total;
+
+  // Center density (middle 3x3 of 5x5 grid)
+  const centerDensity = [6,7,8,11,12,13,16,17,18].reduce((s,i)=>s+zones[i],0);
+
+  // Top/bottom/left/right edge densities
+  const topDensity = [0,1,2,3,4].reduce((s,i)=>s+zones[i],0);
+  const botDensity = [20,21,22,23,24].reduce((s,i)=>s+zones[i],0);
+  const leftDensity = [0,5,10,15,20].reduce((s,i)=>s+zones[i],0);
+  const rightDensity = [4,9,14,19,24].reduce((s,i)=>s+zones[i],0);
+  const midHDensity = [10,11,12,13,14].reduce((s,i)=>s+zones[i],0);
+
+  // ── Letter scoring heuristics ────────────────────────────────────────────────
+  const scores = {};
+
+  // I: very narrow, all pixels in a column
+  scores['I'] = (ratio < 0.35 ? 3 : 0) + (vSym < 0.05 ? 1 : 0);
+
+  // O: high symmetry, hollow center, high perimeter
+  scores['O'] = (hSym < 0.08 ? 1.5 : 0) + (vSym < 0.08 ? 1.5 : 0) + (centerDensity < 0.05 ? 2 : 0);
+
+  // C: left open (low right density), curved top/bottom
+  scores['C'] = (rightDensity < 0.03 ? 3 : 0) + (leftDensity > 0.08 ? 1 : 0) + (hSym < 0.1 ? 0.5 : 0);
+
+  // G: like C but has a horizontal bar in middle-right
+  scores['G'] = (rightDensity < 0.06 && rightDensity > 0.01 ? 2 : 0) + (midHDensity > 0.06 ? 1 : 0);
+
+  // D: right curved, left straight
+  scores['D'] = (leftDensity > 0.1 ? 1 : 0) + (centerDensity > 0.1 ? 1 : 0) + (hSym < 0.08 ? 1 : 0);
+
+  // M: wide, high pixel count, symmetric, two peaks at top
+  scores['M'] = (ratio > 0.85 ? 1 : 0) + (topDensity > 0.15 ? 1 : 0) + (total > 400 ? 1 : 0) + (vSym < 0.05 ? 1 : 0);
+
+  // W: wide, high at bottom, symmetric
+  scores['W'] = (ratio > 0.85 ? 1 : 0) + (botDensity > 0.15 ? 1 : 0) + (total > 380 ? 0.5 : 0) + (vSym < 0.07 ? 1 : 0);
+
+  // E: horizontal stripes, medium width, right side empty
+  scores['E'] = (rightDensity < 0.04 ? 2 : 0) + (topDensity > 0.08 ? 1 : 0) + (botDensity > 0.08 ? 1 : 0) + (midHDensity > 0.06 ? 1 : 0);
+
+  // F: like E but no bottom bar
+  scores['F'] = (rightDensity < 0.04 ? 1.5 : 0) + (botDensity < 0.03 ? 1.5 : 0) + (topDensity > 0.1 ? 1 : 0);
+
+  // L: vertical left, horizontal bottom only
+  scores['L'] = (leftDensity > 0.1 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0) + (topDensity < 0.08 ? 0.5 : 0) + (rightDensity < 0.03 ? 1 : 0);
+
+  // J: short top, curve at bottom-right
+  scores['J'] = (topDensity < 0.06 ? 1.5 : 0) + (rightDensity > 0.05 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0);
+
+  // T: top bar, single vertical
+  scores['T'] = (topDensity > 0.15 ? 2 : 0) + (centerDensity < 0.08 ? 1 : 0) + (vSym < 0.06 ? 1 : 0);
+
+  // Y: top two diagonals meet at center, single vertical below
+  scores['Y'] = (topDensity > 0.12 ? 1 : 0) + (botDensity < 0.1 ? 1 : 0) + (centerDensity > 0.05 ? 1 : 0);
+
+  // V: like Y but opens more
+  scores['V'] = (topDensity > 0.1 ? 1 : 0) + (botDensity < 0.05 ? 1.5 : 0) + (vSym < 0.06 ? 1 : 0);
+
+  // U: open top, closed bottom
+  scores['U'] = (topDensity < 0.06 ? 1.5 : 0) + (botDensity > 0.1 ? 2 : 0) + (vSym < 0.06 ? 1 : 0);
+
+  // N: two vertical bars, diagonal
+  scores['N'] = (leftDensity > 0.08 ? 1 : 0) + (rightDensity > 0.08 ? 1 : 0) + (centerDensity > 0.05 ? 0.5 : 0);
+
+  // H: two vertical bars, horizontal cross
+  scores['H'] = (leftDensity > 0.08 ? 1 : 0) + (rightDensity > 0.08 ? 1 : 0) + (midHDensity > 0.08 ? 1.5 : 0);
+
+  // K: vertical left + diagonal arms
+  scores['K'] = (leftDensity > 0.08 ? 1.5 : 0) + (midHDensity < 0.08 ? 1 : 0);
+
+  // X: diagonal crosses
+  scores['X'] = (centerDensity > 0.08 ? 1.5 : 0) + (topDensity > 0.08 ? 0.5 : 0) + (botDensity > 0.08 ? 0.5 : 0);
+
+  // Z: top/bottom bars, diagonal
+  scores['Z'] = (topDensity > 0.1 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0) + (hSym < 0.12 ? 0.5 : 0) + (vSym > 0.1 ? 1 : 0);
+
+  // A: triangle, open bottom-center
+  scores['A'] = (topDensity < 0.12 ? 1 : 0) + (centerDensity > 0.08 ? 1 : 0) + (vSym < 0.06 ? 1 : 0);
+
+  // B: left vertical, two bumps right
+  scores['B'] = (leftDensity > 0.1 ? 1.5 : 0) + (rightDensity > 0.08 ? 1 : 0) + (centerDensity > 0.05 ? 0.5 : 0);
+
+  // P: top-right bump, open bottom-right
+  scores['P'] = (leftDensity > 0.1 ? 1 : 0) + (topDensity > 0.1 ? 1 : 0) + (botDensity < 0.06 ? 1.5 : 0);
+
+  // Q: like O but with extra stroke
+  scores['Q'] = (hSym < 0.12 ? 1 : 0) + (vSym < 0.12 ? 1 : 0) + (centerDensity < 0.08 ? 1 : 0) + (botDensity > 0.05 ? 0.5 : 0);
+
+  // R: P-like top, diagonal leg
+  scores['R'] = (leftDensity > 0.1 ? 1 : 0) + (topDensity > 0.08 ? 1 : 0) + (botDensity > 0.05 ? 1 : 0) + (rightDensity > 0.03 ? 0.5 : 0);
+
+  // S: no straight lines, curved top and bottom
+  scores['S'] = (leftDensity < 0.06 ? 1 : 0) + (rightDensity < 0.06 ? 1 : 0) + (total < 350 ? 0.5 : 0);
+
+  // Return best match
+  const best = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  return best[0][1] > 0.5 ? best[0][0] : '?';
+}
+
+// ── RENDER BOARD ──────────────────────────────────────────────────────────────
+function renderBoardGrid(highlightMove = null) {
+  const grid = document.getElementById('board-grid');
+  grid.innerHTML = '';
+
+  for (let ri = 0; ri < 15; ri++) {
+    for (let ci = 0; ci < 15; ci++) {
+      const cell = document.createElement('div');
+      cell.className = 'board-cell';
+      cell.dataset.r = ri; cell.dataset.c = ci;
+
+      const letter = boardState[ri][ci];
+      const premium = PREMIUM[ri][ci];
+
+      if (letter) {
+        cell.classList.add('played');
+        cell.textContent = letter === '?' ? '' : letter;
+      } else if (premium === 'CT') {
+        cell.classList.add('center');
+        cell.textContent = '★';
+      } else if (premium) {
+        cell.classList.add('premium-' + premium.toLowerCase());
+        cell.textContent = premium;
+      } else {
+        cell.classList.add('empty');
+      }
+
+      // Highlight a proposed move
+      if (highlightMove) {
+        for (const [mr, mc, ml] of highlightMove.cells || []) {
+          if (mr === ri && mc === ci) {
+            cell.style.background = '#FFB74D';
+            cell.style.color = '#16233C';
+            cell.textContent = ml;
+          }
+        }
+      }
+
+      cell.onclick = () => editCell(ri, ci);
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function editCell(ri, ci) {
+  const current = boardState[ri][ci];
+  const newLetter = prompt(`Cell (row ${ri+1}, col ${ci+1}) — enter letter, or blank to clear:`, current || '');
+  if (newLetter === null) return;
+  const trimmed = newLetter.trim().toUpperCase().slice(0,1);
+  boardState[ri][ci] = trimmed || null;
+  renderBoardGrid();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SOLVER ENGINE — line-based search, anagram-keyed dictionary index
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Built once after dictionary loads; keyed by sorted letters → [words]
+let ANAGRAM_INDEX = null;
+
+function buildAnagramIndex() {
+  ANAGRAM_INDEX = new Map();
+  for (const word of WORDS) {
+    const key = word.split('').sort().join('');
+    if (!ANAGRAM_INDEX.has(key)) ANAGRAM_INDEX.set(key, []);
+    ANAGRAM_INDEX.get(key).push(word);
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function setSolverStatus(msg, type = '') {
+  const el = document.getElementById('solver-status');
+  el.textContent = msg;
+  el.className = 'solver-status' + (type ? ' ' + type : '');
+}
+
+function setRackStatus(msg, type = '') {
+  const el = document.getElementById('rack-status');
+  el.textContent = msg;
+  el.className = 'solver-status' + (type ? ' ' + type : '');
+}
+
+function showProgress(show, pct = 0) {
+  const wrap = document.getElementById('scan-progress-wrap');
+  const bar  = document.getElementById('scan-progress-bar');
+  wrap.style.display = show ? '' : 'none';
+  bar.style.width = (pct * 100) + '%';
+}
+
+document.getElementById('rack-input').addEventListener('input', function() {
+  const s = this.selectionStart, e2 = this.selectionEnd;
+  this.value = this.value.toUpperCase();
+  this.setSelectionRange(s, e2);
+});
+
+// ── CROSS-WORD LOOKUP ─────────────────────────────────────────────────────────
+// Returns the word formed perpendicular to `horiz` at (r,c) if new letter `ch` is placed there
+function getCrossWord(board, r, c, ch, horiz) {
+  let word = ch;
+  if (horiz) {
+    // perpendicular = vertical
+    let rr = r - 1;
+    while (rr >= 0 && board[rr][c]) { word = board[rr][c] + word; rr--; }
+    rr = r + 1;
+    while (rr < 15 && board[rr][c]) { word = word + board[rr][c]; rr++; }
+  } else {
+    // perpendicular = horizontal
+    let cc = c - 1;
+    while (cc >= 0 && board[r][cc]) { word = board[r][cc] + word; cc--; }
+    cc = c + 1;
+    while (cc < 15 && board[r][cc]) { word = word + board[r][cc]; cc++; }
+  }
+  return word.length > 1 ? word : null;
+}
+
+// ── SCORING ───────────────────────────────────────────────────────────────────
+function scoreMove(board, newCellSet, word, startR, startC, horiz) {
+  let main = 0, wordMult = 1;
+  const wLen = word.length;
+
+  for (let i = 0; i < wLen; i++) {
+    const r = horiz ? startR : startR + i;
+    const c = horiz ? startC + i : startC;
+    const ch = word[i];
+    const isNew = newCellSet.has(r * 15 + c);
+    const prem  = PREMIUM[r][c];
+    let lv = WWF_VALUES[ch] || 0;
+    if (isNew) {
+      if (prem === '2L') lv *= 2;
+      if (prem === '3L') lv *= 3;
+      if (prem === '2W' || prem === 'CT') wordMult *= 2;
+      if (prem === '3W') wordMult *= 3;
+    }
+    main += lv;
+  }
+  main *= wordMult;
+
+  // Cross-word scores
+  for (const cellIdx of newCellSet) {
+    const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
+    const ch = horiz ? word[c - startC] : word[r - startR];
+    const cross = getCrossWord(board, r, c, ch, horiz);
+    if (!cross) continue;
+    const prem = PREMIUM[r][c];
+    let crossScore = 0, crossMult = 1;
+    if (prem === '2W' || prem === 'CT') crossMult *= 2;
+    if (prem === '3W') crossMult *= 3;
+    for (const cc of cross) crossScore += (WWF_VALUES[cc] || 0);
+    // The new letter's premium was applied to its face value above; for the cross
+    // we apply letter-multiplier separately
+    const lv = WWF_VALUES[ch] || 0;
+    let lvCross = lv;
+    if (prem === '2L') lvCross *= 2;
+    if (prem === '3L') lvCross *= 3;
+    // Replace face value of ch with multiplied value in cross score
+    crossScore = crossScore - lv + lvCross;
+    crossScore *= crossMult;
+    main += crossScore;
+  }
+
+  // Bingo bonus (all 7 rack tiles used)
+  if (newCellSet.size === 7) main += 35;
+  return main;
+}
+
+// ── MAIN SEARCH ───────────────────────────────────────────────────────────────
+// For each row/col, extract the line, find candidate words that fit using
+// rack + existing tiles, validate cross-words, score, collect.
+function runSolver() {
+  const rackRaw = document.getElementById('rack-input').value.trim().toUpperCase().replace(/[^A-Z?]/g,'');
+  if (!rackRaw) { setRackStatus('Enter your rack letters first.', 'error'); return; }
+  if (!WORDS.length) { setRackStatus('Dictionary still loading.', 'error'); return; }
+  if (rackRaw.length > 7) { setRackStatus('Rack can have at most 7 tiles.', 'error'); return; }
+
+  if (!ANAGRAM_INDEX) buildAnagramIndex();
+
+  setRackStatus('Searching…');
+  document.getElementById('btn-solve').disabled = true;
+
+  setTimeout(() => {
+    try {
+      const moves = findAllMoves(boardState, rackRaw);
+      window._currentMoves = moves;
+      displayMoves(moves);
+      setRackStatus(`${moves.length} valid move${moves.length !== 1 ? 's' : ''} found.`, 'success');
+    } catch(e) {
+      setRackStatus('Error: ' + e.message, 'error');
+      console.error(e);
+    }
+    document.getElementById('btn-solve').disabled = false;
+  }, 30);
+}
+
+function findAllMoves(board, rack) {
+  const rackArr  = rack.split('');
+  const blanks   = rackArr.filter(l => l === '?').length;
+  const fixed    = rackArr.filter(l => l !== '?');
+  const isEmpty  = board.flat().every(c => !c);
+  const results  = [];
+  const seen     = new Set();
+
+  // Search both horizontal and vertical
+  for (const horiz of [true, false]) {
+    for (let line = 0; line < 15; line++) {
+      // Extract this row/col
+      const existing = [];  // {pos, letter}
+      let hasAnchor = isEmpty && line === 7;
+      for (let pos = 0; pos < 15; pos++) {
+        const r = horiz ? line : pos;
+        const c = horiz ? pos : line;
+        if (board[r][c]) existing.push({ pos, letter: board[r][c] });
+        if (!isEmpty) {
+          // Check if any adjacent cell (perpendicular) has a tile
+          const adjR1 = horiz ? line - 1 : line;
+          const adjC1 = horiz ? pos : line - 1;
+          const adjR2 = horiz ? line + 1 : line;
+          const adjC2 = horiz ? pos : line + 1;
+          if (
+            (adjR1 >= 0 && adjC1 >= 0 && board[adjR1][adjC1]) ||
+            (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])
+          ) hasAnchor = true;
+        }
+      }
+      if (!hasAnchor && !existing.length) continue;
+
+      // For each possible start position and length
+      for (let start = 0; start < 15; start++) {
+        // Can't start if cell before start is occupied (would extend existing word)
+        const preR = horiz ? line : start - 1;
+        const preC = horiz ? start - 1 : line;
+        if (start > 0 && preR >= 0 && preC >= 0 && board[preR][preC]) continue;
+
+        for (let len = 2; len <= Math.min(15 - start, fixed.length + blanks + existing.length); len++) {
+          const end = start + len - 1;
+          // Can't end if cell after end is occupied
+          const postR = horiz ? line : end + 1;
+          const postC = horiz ? end + 1 : line;
+          if (end < 14 && board[postR][postC]) continue;
+
+          // Collect fixed letters already on board within [start..end]
+          const boardLettersInRange = existing.filter(e => e.pos >= start && e.pos <= end);
+          const newSlotsNeeded = len - boardLettersInRange.length;
+          if (newSlotsNeeded < 1) continue; // must place at least 1 new tile
+          if (newSlotsNeeded > fixed.length + blanks) continue;
+
+          // Must touch an existing tile or anchor
+          const touchesBoard = boardLettersInRange.length > 0;
+          const touchesPerp  = (() => {
+            for (let pos = start; pos <= end; pos++) {
+              const r = horiz ? line : pos;
+              const c = horiz ? pos : line;
+              if (board[r][c]) continue; // already on board
+              const adjR1 = horiz ? line - 1 : line;
+              const adjC1 = horiz ? pos : line - 1;
+              const adjR2 = horiz ? line + 1 : line;
+              const adjC2 = horiz ? pos : line + 1;
+              if ((adjR1 >= 0 && adjC1 >= 0 && board[adjR1][adjC1]) ||
+                  (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])) return true;
+            }
+            return false;
+          })();
+          if (!touchesBoard && !touchesPerp) {
+            if (!isEmpty) continue;
+            // Empty board: must cover center (7,7)
+            const coversCtr = horiz ? (line === 7 && start <= 7 && end >= 7)
+                                    : (line === 7 && start <= 7 && end >= 7);
+            if (!coversCtr) continue;
+          }
+
+          // Build the "pattern" for this slot: known chars from board, '.' for unknowns
+          const pattern = Array(len).fill('.');
+          for (const e of boardLettersInRange) pattern[e.pos - start] = e.letter;
+
+          // Find all words that fit this pattern using rack
+          const candidates = findCandidates(pattern, rackArr);
+          const startR = horiz ? line : start;
+          const startC = horiz ? start : line;
+
+          for (const { word, newPositions } of candidates) {
+            // Convert dot-position offsets → grid indices
+            const newCellSet = new Set(newPositions.map(pos => {
+              const r = horiz ? line : start + pos;
+              const c = horiz ? start + pos : line;
+              return r * 15 + c;
+            }));
+
+            // Validate all cross-words
+            let valid = true;
+            for (const cellIdx of newCellSet) {
+              const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
+              const ch = horiz ? word[c - start] : word[r - start];
+              const cross = getCrossWord(board, r, c, ch, horiz);
+              if (cross && !WORDS_SET.has(cross)) { valid = false; break; }
+            }
+            if (!valid) continue;
+
+            const key = `${word}|${startR}|${startC}|${horiz?'H':'V'}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            const score = scoreMove(board, newCellSet, word, startR, startC, horiz);
+            const cells = [];
+            for (const cellIdx of newCellSet) {
+              const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
+              const ch = horiz ? word[c - start] : word[r - start];
+              cells.push([r, c, ch]);
+            }
+            results.push({ word, score, row: startR, col: startC, dir: horiz ? 'H' : 'V', cells, isBingo: newCellSet.size === 7 });
+          }
+        }
+      }
+    }
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 50);
+}
+
+// Find all valid words matching pattern using rack letters.
+// pattern: array of char or '.' for unknowns.
+// Returns [{word, newPositions}] where newPositions are the dot-slot indices filled.
+function findCandidates(pattern, rackArr) {
+  const results    = [];
+  const dotPos     = pattern.map((ch, i) => ch === '.' ? i : -1).filter(i => i >= 0);
+  const numDots    = dotPos.length;
+  const wordSeen   = new Set();
+
+  if (numDots === 0) {
+    const word = pattern.join('');
+    if (WORDS_SET.has(word)) results.push({ word, newPositions: [] });
+    return results;
+  }
+
+  function fill(dotIdx, rackPool, chosen) {
+    if (dotIdx === numDots) {
+      const wordArr = [...pattern];
+      for (let i = 0; i < numDots; i++) wordArr[dotPos[i]] = chosen[i];
+      const word = wordArr.join('');
+      if (!wordSeen.has(word) && WORDS_SET.has(word)) {
+        wordSeen.add(word);
+        results.push({ word, newPositions: [...dotPos] });
+      }
+      return;
+    }
+
+    const triedLetters = new Set();
+    for (let i = 0; i < rackPool.length; i++) {
+      const l = rackPool[i];
+      if (l === '?' || triedLetters.has(l)) continue;
+      triedLetters.add(l);
+      rackPool.splice(i, 1);
+      fill(dotIdx + 1, rackPool, [...chosen, l]);
+      rackPool.splice(i, 0, l);
+    }
+    // Blank tile
+    const blankIdx = rackPool.indexOf('?');
+    if (blankIdx !== -1) {
+      rackPool.splice(blankIdx, 1);
+      for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+        fill(dotIdx + 1, rackPool, [...chosen, letter]);
+      }
+      rackPool.splice(blankIdx, 0, '?');
+    }
+  }
+
+  fill(0, [...rackArr], []);
+  return results;
+}
+
+// ── DISPLAY MOVES ──────────────────────────────────────────────────────────────
+window._currentMoves = [];
+
+function displayMoves(moves) {
+  const card  = document.getElementById('moves-card');
+  const list  = document.getElementById('move-list');
+  const title = document.getElementById('moves-title');
+  const meta  = document.getElementById('moves-meta');
+
+  card.style.display = '';
+  title.textContent = `${moves.length} Best Move${moves.length !== 1 ? 's' : ''}`;
+  meta.textContent  = moves.length > 0 ? `Top score: ${moves[0].score} pts` : '';
+
+  if (!moves.length) {
+    list.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:0.85rem;">No valid moves found. Check rack and board.</div>';
+    return;
+  }
+
+  list.innerHTML = moves.slice(0, 30).map((m, idx) => {
+    const dirLabel = m.dir === 'H' ? '→' : '↓';
+    const colLabel = String.fromCharCode(65 + m.col);
+    const rowLabel = m.row + 1;
+    return `<div class="move-item" onclick="selectMove(${idx})" data-idx="${idx}">
+      <div class="move-score">${m.score}</div>
+      <div style="flex:1">
+        <div class="move-word">${m.word}${m.isBingo ? '&nbsp;<span class="move-bingo">BINGO</span>' : ''}</div>
+        <div class="move-detail">${dirLabel} col ${colLabel}, row ${rowLabel}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  selectMove(0);
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectMove(idx) {
+  selectedMoveIdx = idx;
+  document.querySelectorAll('.move-item').forEach(el => el.classList.remove('selected'));
+  const el = document.querySelector(`.move-item[data-idx="${idx}"]`);
+  if (el) el.classList.add('selected');
+  const move = window._currentMoves[idx];
+  if (move) renderBoardGrid(move);
+}
+
+// Patch loadDictionary to also build anagram index
+const _origLoad = loadDictionary;
+loadDictionary = async function() {
+  await _origLoad();
+  if (WORDS.length) buildAnagramIndex();
+};
 </script>
 </body>
 </html>
