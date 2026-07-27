@@ -502,7 +502,7 @@ nav {
   <div class="about-section">
     <button class="about-toggle" onclick="toggleAbout()">About this tool</button>
     <div class="about-body" id="about-body">
-      <p>Enter up to 15 letters — use <strong>?</strong> or <strong>*</strong> for blank tiles. Results are sorted by length, then Scrabble score.</p>
+      <p>Enter up to 15 letters — use <strong>?</strong> or <strong>*</strong> for blank tiles. Results are grouped by length (longest first) and sorted alphabetically within each group.</p>
       <p>The dictionary is the <strong>NWL (TWL/OTCWL)</strong> — the official Scrabble word list for North America, containing 279,494 valid words.</p>
       <p>Use <strong>position constraints</strong> to pin a letter to a specific spot. For example, "H is 4th from end" means every result will have H at the 4th position counting from the last letter.</p>
       <p><strong>Exclude letters</strong> removes any word containing those letters from results — useful for Wordle or when you know certain letters are wrong.</p>
@@ -587,11 +587,13 @@ function addPositionConstraint() {
   posConstraints.push({ dir, pos, letter });
   document.getElementById('pos-letter-val').value = '';
   renderPosGrid();
+  if (document.getElementById('main-input').value.trim()) runSearch();
 }
 
 function removeConstraint(dir, pos) {
   posConstraints = posConstraints.filter(c => !(c.dir === dir && c.pos === pos));
   renderPosGrid();
+  if (document.getElementById('main-input').value.trim()) runSearch();
 }
 
 function renderPosGrid() {
@@ -643,7 +645,7 @@ function runSearch() {
     // Prefix / suffix / must-include filters
     if (prefix && !word.startsWith(prefix)) continue;
     if (suffix && !word.endsWith(suffix)) continue;
-    if (must && !must.split('').every(ch => word.includes(ch))) continue;
+    if (must && !word.includes(must)) continue;
 
     // Exclude filter — skip words containing any excluded letter
     if (exclude.length && exclude.some(ch => word.includes(ch))) continue;
@@ -705,9 +707,9 @@ function renderResults(results, query) {
     (byLength[w.length] = byLength[w.length] || []).push(w);
   }
 
-  // Sort within each length by score desc
+  // Sort within each length alphabetically
   for (const len in byLength) {
-    byLength[len].sort((a,b) => wordScore(b) - wordScore(a));
+    byLength[len].sort((a,b) => a.localeCompare(b));
   }
 
   const lengths = Object.keys(byLength).map(Number).sort((a,b) => b - a);
