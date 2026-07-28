@@ -1499,20 +1499,24 @@ function getCrossWord(board, r, c, ch, horiz) {
 }
 
 // ── SCORING ───────────────────────────────────────────────────────────────────
-function scoreMove(board, newCellSet, word, startR, startC, horiz) {
+function scoreMove(board, newCellSet, blankCellSet, word, startR, startC, horiz) {
   let main = 0, wordMult = 1;
   const wLen = word.length;
 
   for (let i = 0; i < wLen; i++) {
-    const r = horiz ? startR : startR + i;
-    const c = horiz ? startC + i : startC;
+    const r  = horiz ? startR : startR + i;
+    const c  = horiz ? startC + i : startC;
     const ch = word[i];
-    const isNew = newCellSet.has(r * 15 + c);
-    const prem  = PREMIUM[r][c];
-    let lv = WWF_VALUES[ch] || 0;
-    if (isNew) {
+    const isNew   = newCellSet.has(r * 15 + c);
+    const isBlank = blankCellSet.has(r * 15 + c);
+    const prem    = PREMIUM[r][c];
+    // Blank tiles always score 0 — no face value, no letter multiplier
+    let lv = isBlank ? 0 : (WWF_VALUES[ch] || 0);
+    if (isNew && !isBlank) {
       if (prem === '2L') lv *= 2;
       if (prem === '3L') lv *= 3;
+    }
+    if (isNew) {
       if (prem === '2W' || prem === 'CT') wordMult *= 2;
       if (prem === '3W') wordMult *= 3;
     }
@@ -1522,23 +1526,25 @@ function scoreMove(board, newCellSet, word, startR, startC, horiz) {
 
   // Cross-word scores
   for (const cellIdx of newCellSet) {
-    const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
+    const r  = Math.floor(cellIdx / 15), c = cellIdx % 15;
     const ch = horiz ? word[c - startC] : word[r - startR];
+    const isBlank = blankCellSet.has(cellIdx);
     const cross = getCrossWord(board, r, c, ch, horiz);
     if (!cross) continue;
     const prem = PREMIUM[r][c];
     let crossScore = 0, crossMult = 1;
     if (prem === '2W' || prem === 'CT') crossMult *= 2;
     if (prem === '3W') crossMult *= 3;
+    // Score all letters in the cross-word at face value first
     for (const cc of cross) crossScore += (WWF_VALUES[cc] || 0);
-    // The new letter's premium was applied to its face value above; for the cross
-    // we apply letter-multiplier separately
-    const lv = WWF_VALUES[ch] || 0;
-    let lvCross = lv;
-    if (prem === '2L') lvCross *= 2;
-    if (prem === '3L') lvCross *= 3;
-    // Replace face value of ch with multiplied value in cross score
-    crossScore = crossScore - lv + lvCross;
+    // Correct the new tile's contribution: blank = 0, normal = face × letter mult
+    const faceLv = WWF_VALUES[ch] || 0;
+    let newTileLv = isBlank ? 0 : faceLv;
+    if (!isBlank) {
+      if (prem === '2L') newTileLv *= 2;
+      if (prem === '3L') newTileLv *= 3;
+    }
+    crossScore = crossScore - faceLv + newTileLv;
     crossScore *= crossMult;
     main += crossScore;
   }
@@ -1661,9 +1667,15 @@ function findAllMoves(board, rack) {
           const startR = horiz ? line : start;
           const startC = horiz ? start : line;
 
-          for (const { word, newPositions } of candidates) {
+          for (const { word, newPositions, blankPositions } of candidates) {
             // Convert dot-position offsets → grid indices
             const newCellSet = new Set(newPositions.map(pos => {
+              const r = horiz ? line : start + pos;
+              const c = horiz ? start + pos : line;
+              return r * 15 + c;
+            }));
+            // Blank cell grid indices (score 0, no letter multiplier)
+            const blankCellSet = new Set(blankPositions.map(pos => {
               const r = horiz ? line : start + pos;
               const c = horiz ? start + pos : line;
               return r * 15 + c;
@@ -1683,12 +1695,13 @@ function findAllMoves(board, rack) {
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const score = scoreMove(board, newCellSet, word, startR, startC, horiz);
+            const score = scoreMove(board, newCellSet, blankCellSet, word, startR, startC, horiz);
             const cells = [];
             for (const cellIdx of newCellSet) {
               const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
               const ch = horiz ? word[c - start] : word[r - start];
-              cells.push([r, c, ch]);
+              const isBlank = blankCellSet.has(cellIdx);
+              cells.push([r, c, ch, isBlank]);
             }
             results.push({ word, score, row: startR, col: startC, dir: horiz ? 'H' : 'V', cells, isBingo: newCellSet.size === 7 });
           }
@@ -1703,7 +1716,7 @@ function findAllMoves(board, rack) {
 
 // Find all valid words matching pattern using rack letters.
 // pattern: array of char or '.' for unknowns.
-// Returns [{word, newPositions}] where newPositions are the dot-slot indices filled.
+// Returns [{word, newPositions, blankPositions}] where blankPositions are dot-slot indices filled by a blank tile.
 function findCandidates(pattern, rackArr) {
   const results    = [];
   const dotPos     = pattern.map((ch, i) => ch === '.' ? i : -1).filter(i => i >= 0);
@@ -1712,18 +1725,20 @@ function findCandidates(pattern, rackArr) {
 
   if (numDots === 0) {
     const word = pattern.join('');
-    if (WORDS_SET.has(word)) results.push({ word, newPositions: [] });
+    if (WORDS_SET.has(word)) results.push({ word, newPositions: [], blankPositions: [] });
     return results;
   }
 
-  function fill(dotIdx, rackPool, chosen) {
+  // chosen: array of letters; usedBlank: parallel array of booleans
+  function fill(dotIdx, rackPool, chosen, usedBlank) {
     if (dotIdx === numDots) {
       const wordArr = [...pattern];
       for (let i = 0; i < numDots; i++) wordArr[dotPos[i]] = chosen[i];
       const word = wordArr.join('');
       if (!wordSeen.has(word) && WORDS_SET.has(word)) {
         wordSeen.add(word);
-        results.push({ word, newPositions: [...dotPos] });
+        const blankPositions = dotPos.filter((_, i) => usedBlank[i]);
+        results.push({ word, newPositions: [...dotPos], blankPositions });
       }
       return;
     }
@@ -1734,21 +1749,21 @@ function findCandidates(pattern, rackArr) {
       if (l === '?' || triedLetters.has(l)) continue;
       triedLetters.add(l);
       rackPool.splice(i, 1);
-      fill(dotIdx + 1, rackPool, [...chosen, l]);
+      fill(dotIdx + 1, rackPool, [...chosen, l], [...usedBlank, false]);
       rackPool.splice(i, 0, l);
     }
-    // Blank tile
+    // Blank tile — plays as any letter but scores 0
     const blankIdx = rackPool.indexOf('?');
     if (blankIdx !== -1) {
       rackPool.splice(blankIdx, 1);
       for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-        fill(dotIdx + 1, rackPool, [...chosen, letter]);
+        fill(dotIdx + 1, rackPool, [...chosen, letter], [...usedBlank, true]);
       }
       rackPool.splice(blankIdx, 0, '?');
     }
   }
 
-  fill(0, [...rackArr], []);
+  fill(0, [...rackArr], [], []);
   return results;
 }
 
