@@ -1227,7 +1227,7 @@ async function processImage(img) {
 
     // Generate the 16 boundary positions
     const grid = [];
-    for (let i = 0; i <= 15; i++) grid.push((bestOriginN - 1) * sp + bestPhase + i * sp);
+    for (let i = 0; i <= 15; i++) grid.push(bestOriginN * sp + bestPhase + i * sp);
     return grid;
   }
 
@@ -1262,6 +1262,10 @@ async function processImage(img) {
     setSolverStatus('Could not detect board grid. Make sure the full board is visible in the screenshot.', 'error');
     showProgress(false); return;
   }
+
+  // Shift row grid up by one cell (rows only, not columns)
+  const rowSp = allY[1] - allY[0];
+  allY = allY.map(g => g - rowSp);
 
   const ins = 3;
   detectedRows = Array.from({length:15}, (_,i) => ({ y0: allY[i]+ins,   y1: allY[i+1]-ins }));
