@@ -1055,32 +1055,40 @@ function switchTab(tab) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BOARD SCANNER — NYT Crosswords (same device, 1206×2622 screenshots)
+// BOARD SCANNER — dynamic grid detection, works with any UI state
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Calibrated grid for 1206×2622 NYT Crosswords screenshots
-const GRID = {
-  rowStarts: [320,397,474,551,628,705,782,860,937,1014,1091,1168,1245,1323,1400],
-  colStarts: [27,105,182,259,336,413,490,568,645,722,799,876,953,1031,1108],
-  cellW: 77, cellH: 70
-};
+// Detected at runtime — no hardcoded pixel positions
+let detectedRows = null; // [{y0,y1}] x15
+let detectedCols = null; // [{x0,x1}] x15
 
-// WWF/NYT Crosswords board premium square layout (0-indexed, standard layout)
+// WWF/NYT Crosswords board premium square layout — read directly from IMG_0716 blank board
+// Colors confirmed: 3W=[160,49,170] purple, 2W=[79,99,144] blue,
+//                  3L=[223,231,209] pale green, 2L=[240,234,205] cream
 const PREMIUM = (() => {
   const b = Array.from({length:15}, () => Array(15).fill(''));
-  // 3W
-  [[0,0],[0,7],[0,14],[7,0],[7,14],[14,0],[14,7],[14,14]].forEach(([r,c])=>b[r][c]='3W');
-  // 2W
-  [[1,1],[2,2],[3,3],[4,4],[10,10],[11,11],[12,12],[13,13],
-   [1,13],[2,12],[3,11],[4,10],[10,4],[11,3],[12,2],[13,1]].forEach(([r,c])=>b[r][c]='2W');
-  // 3L
-  [[1,5],[1,9],[5,1],[5,5],[5,9],[5,13],[9,1],[9,5],[9,9],[9,13],[13,5],[13,9],
-   [0,2],[0,12],[2,0],[2,14],[12,0],[12,14],[14,2],[14,12]].forEach(([r,c])=>b[r][c]='3L');
-  // 2L
-  [[0,3],[0,11],[2,6],[2,8],[3,0],[3,7],[3,14],[6,2],[6,6],[6,8],[6,12],
-   [7,3],[7,11],[8,2],[8,6],[8,8],[8,12],[11,0],[11,7],[11,14],
-   [12,6],[12,8],[14,3],[14,11]].forEach(([r,c])=>b[r][c]='2L');
-  b[7][7] = 'CT'; // center
+
+  // 3W — purple, 8 positions
+  [[0,3],[0,11],[3,0],[3,14],[11,0],[11,14],[14,3],[14,11]]
+    .forEach(([r,c]) => b[r][c] = '3W');
+
+  // 2W — light blue, 8 positions
+  [[1,1],[1,13],[3,7],[7,3],[7,11],[11,7],[13,1],[13,13]]
+    .forEach(([r,c]) => b[r][c] = '2W');
+
+  // 3L — pale green, 20 positions
+  [[0,0],[0,14],[1,6],[1,8],[4,5],[4,9],[5,4],[5,10],
+   [6,1],[6,13],[8,1],[8,13],[9,4],[9,10],[10,5],[10,9],
+   [13,6],[13,8],[14,0],[14,14]]
+    .forEach(([r,c]) => b[r][c] = '3L');
+
+  // 2L — cream/yellow-green, 20 positions
+  [[0,7],[2,4],[2,10],[3,3],[3,11],[4,2],[4,12],[5,7],
+   [7,0],[7,5],[7,9],[7,14],[9,7],[10,2],[10,12],[11,3],
+   [11,11],[12,4],[12,10],[14,7]]
+    .forEach(([r,c]) => b[r][c] = '2L');
+
+  b[7][7] = 'CT'; // center star
   return b;
 })();
 
@@ -1090,12 +1098,12 @@ const WWF_VALUES = {
   N:2,O:1,P:4,Q:10,R:1,S:1,T:1,U:2,V:5,W:4,X:8,Y:3,Z:10
 };
 
-let boardState = Array.from({length:15}, () => Array(15).fill(null)); // null=empty, letter=played
+let boardState = Array.from({length:15}, () => Array(15).fill(null));
 let solverCanvas = null;
 let solverCtx = null;
 let selectedMoveIdx = -1;
 
-// ── FILE UPLOAD & SCAN ─────────────────────────────────────────────────────────
+// ── FILE UPLOAD ────────────────────────────────────────────────────────────────
 function handleFileUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1104,240 +1112,275 @@ function handleFileUpload(event) {
     const img = new Image();
     img.onload = () => processImage(img);
     img.src = e.target.result;
-    // Show preview
     document.getElementById('board-preview-img').src = e.target.result;
     document.getElementById('board-preview-wrap').classList.add('visible');
   };
   reader.readAsDataURL(file);
 }
 
-// Drag and drop
 const uploadZone = document.getElementById('upload-zone');
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
   e.preventDefault(); uploadZone.classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (file) {
-    const event = { target: { files: [file] } };
-    handleFileUpload(event);
-  }
+  if (file) handleFileUpload({ target: { files: [file] } });
 });
 
+// ── DYNAMIC BOARD SCANNER ──────────────────────────────────────────────────────
 async function processImage(img) {
-  setSolverStatus('Scanning board…');
+  setSolverStatus('Finding board grid…');
   showProgress(true, 0);
 
-  // Draw to offscreen canvas
   solverCanvas = document.createElement('canvas');
-  solverCanvas.width = img.naturalWidth;
+  solverCanvas.width  = img.naturalWidth;
   solverCanvas.height = img.naturalHeight;
   solverCtx = solverCanvas.getContext('2d');
   solverCtx.drawImage(img, 0, 0);
 
-  // Validate dimensions
-  if (img.naturalWidth !== 1206 || img.naturalHeight !== 2622) {
-    setSolverStatus(`⚠ Expected 1206×2622 but got ${img.naturalWidth}×${img.naturalHeight}. Results may be inaccurate.`, 'error');
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const full = solverCtx.getImageData(0, 0, W, H);
+  const d = full.data;
+
+  // ── Step 1: Find white gap lines ─────────────────────────────────────────
+  function findGapCenters(isRow) {
+    const size     = isRow ? H : W;
+    const scanMin  = isRow ? Math.floor(H * 0.10) : 10;
+    const scanMax  = isRow ? Math.floor(H * 0.97) : W - 10;
+    const crossMin = isRow ? 20 : Math.floor(H * 0.15);
+    const crossMax = isRow ? W - 20 : Math.floor(H * 0.85);
+    const step = 4;
+    const centers = [];
+    let inGap = false, gStart = 0;
+    for (let i = scanMin; i < scanMax; i++) {
+      let white = 0, total = 0;
+      for (let j = crossMin; j < crossMax; j += step) {
+        const idx = isRow ? (i * W + j) * 4 : (j * W + i) * 4;
+        if (d[idx] > 245 && d[idx+1] > 245 && d[idx+2] > 245) white++;
+        total++;
+      }
+      const isW = white / total > 0.75;
+      if (isW && !inGap)       { inGap = true; gStart = i; }
+      else if (!isW && inGap)  { centers.push(Math.round((gStart + i - 1) / 2)); inGap = false; }
+    }
+    if (inGap) centers.push(Math.round((gStart + scanMax) / 2));
+    return centers;
   }
 
-  // Scan all 225 cells
-  boardState = Array.from({length:15}, () => Array(15).fill(null));
-  const total = 15 * 15;
-  let scanned = 0;
+  function longestRegularRun(gaps, spacing = 77, tol = 14) {
+    let best = [];
+    for (let s = 0; s < gaps.length; s++) {
+      const seq = [gaps[s]];
+      for (let i = s + 1; i < gaps.length; i++) {
+        const sp = gaps[i] - seq[seq.length - 1];
+        if (Math.abs(sp - spacing) <= tol) seq.push(gaps[i]);
+        else if (sp > spacing + tol) break;
+      }
+      if (seq.length > best.length) best = seq;
+    }
+    return best;
+  }
 
-  for (let ri = 0; ri < 15; ri++) {
-    for (let ci = 0; ci < 15; ci++) {
-      const letter = readTile(ri, ci);
-      boardState[ri][ci] = letter;
-      scanned++;
-      if (scanned % 15 === 0) showProgress(true, scanned / total);
-      // Yield to UI every row
-      if (ci === 14) await new Promise(r => setTimeout(r, 0));
+  // Robust grid fitting — tolerates missing gaps caused by tile rows blocking white lines.
+  // 1. Find the best-fit spacing and phase from ALL found gaps (not just consecutive).
+  // 2. Snap every found gap to the nearest grid line.
+  // 3. Fill in any missing grid lines by extrapolation.
+  function fitGrid(gaps, nominalSpacing = 77, tol = 14) {
+    if (gaps.length < 4) return null;
+
+    // Score each pair spacing to find the true cell spacing
+    const spacings = [];
+    for (let i = 0; i < gaps.length; i++)
+      for (let j = i+1; j < gaps.length; j++) {
+        const diff = gaps[j] - gaps[i];
+        const n = Math.round(diff / nominalSpacing);
+        if (n >= 1 && n <= 15 && Math.abs(diff - n * nominalSpacing) < tol)
+          spacings.push(diff / n);
+      }
+    if (spacings.length < 2) return null;
+    const sp = Math.round(spacings.reduce((a,b)=>a+b,0) / spacings.length);
+
+    // Vote on grid phase (position mod sp)
+    const votes = new Float32Array(sp + 1);
+    for (const g of gaps) votes[Math.round(g % sp)]++;
+    let bestPhase = 0;
+    for (let i = 1; i <= sp; i++) if (votes[i] > votes[bestPhase]) bestPhase = i;
+
+    // Snap every found gap to its nearest grid line
+    const snapped = new Set();
+    for (const g of gaps) {
+      const n = Math.round((g - bestPhase) / sp);
+      const gridLine = bestPhase + n * sp;
+      if (Math.abs(g - gridLine) < tol) snapped.add(n);
+    }
+    if (snapped.size < 4) return null;
+
+    // Determine which 16 consecutive grid lines form the board
+    // Find the first gap that's in the board area
+    const ns = [...snapped].sort((a,b)=>a-b);
+    // The board's 16 lines span 15 cells; find the run of 16 consecutive indices
+    // Try anchoring at the smallest found gap that gives 16 lines with enough hits
+    let bestOriginN = ns[0];
+    let bestHits = 0;
+    for (const anchorN of ns) {
+      // Board spans anchorN to anchorN+15
+      let hits = 0;
+      for (let i = 0; i <= 15; i++) if (snapped.has(anchorN + i)) hits++;
+      if (hits > bestHits) { bestHits = hits; bestOriginN = anchorN; }
+    }
+
+    // Generate the 16 boundary positions
+    const grid = [];
+    for (let i = 0; i <= 15; i++) grid.push(bestOriginN * sp + bestPhase + i * sp);
+    return grid;
+  }
+
+  const gapsY = findGapCenters(true);
+  const gapsX = findGapCenters(false);
+
+  // Try robust fit first; fall back to simple consecutive run
+  let allY = fitGrid(gapsY);
+  let allX = fitGrid(gapsX);
+
+  // If robust fit fails, fall back to longest consecutive run + extrapolation
+  if (!allY) {
+    const seqY = longestRegularRun(gapsY);
+    if (seqY.length >= 4) {
+      const avY = Math.round(seqY.reduce((s,_,i)=>i?s+seqY[i]-seqY[i-1]:s,0)/Math.max(1,seqY.length-1));
+      allY = [seqY[0]-avY,...seqY,seqY[seqY.length-1]+avY];
+      while (allY.length > 16) allY.shift();
+      while (allY.length < 16) allY.unshift(allY[0]-avY);
+    }
+  }
+  if (!allX) {
+    const seqX = longestRegularRun(gapsX);
+    if (seqX.length >= 4) {
+      const avX = Math.round(seqX.reduce((s,_,i)=>i?s+seqX[i]-seqX[i-1]:s,0)/Math.max(1,seqX.length-1));
+      allX = seqX.length >= 16 ? seqX : [seqX[0]-avX,...seqX,seqX[seqX.length-1]+avX];
+      while (allX.length > 16) allX.pop();
+      while (allX.length < 16) allX.push(allX[allX.length-1]+avX);
     }
   }
 
-  showProgress(false);
-  const tileCount = boardState.flat().filter(Boolean).length;
-  setSolverStatus(`Found ${tileCount} played tile${tileCount !== 1 ? 's' : ''}${tileCount === 0 ? ' — board appears empty or calibration needs adjustment' : ''}`, tileCount > 0 ? 'success' : 'error');
+  if (!allY || !allX || allY.length < 16 || allX.length < 16) {
+    setSolverStatus('Could not detect board grid. Make sure the full board is visible in the screenshot.', 'error');
+    showProgress(false); return;
+  }
 
+  const ins = 3;
+  detectedRows = Array.from({length:15}, (_,i) => ({ y0: allY[i]+ins,   y1: allY[i+1]-ins }));
+  detectedCols = Array.from({length:15}, (_,i) => ({ x0: allX[i]+ins,   x1: allX[i+1]-ins }));
+
+  // ── Step 2: Scan each cell ───────────────────────────────────────────────
+  boardState = Array.from({length:15}, () => Array(15).fill(null));
+  const tilesToOCR = [];
+
+  for (let ri = 0; ri < 15; ri++) {
+    for (let ci = 0; ci < 15; ci++) {
+      const canvas = scanCell(ri, ci, d, W);
+      if (canvas) tilesToOCR.push({ ri, ci, canvas });
+    }
+    showProgress(true, (ri + 1) / 15);
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  // ── Step 3: OCR tiles ────────────────────────────────────────────────────
+  if (tilesToOCR.length > 0) {
+    setSolverStatus(`Reading ${tilesToOCR.length} letter${tilesToOCR.length!==1?'s':''}…`);
+    await runOCR(tilesToOCR);
+  }
+
+  showProgress(false);
+  const count = boardState.flat().filter(Boolean).length;
+  setSolverStatus(
+    count > 0 ? `Found ${count} tile${count!==1?'s':''}.` : 'No tiles detected — board may be empty or screenshot unclear.',
+    count > 0 ? 'success' : 'error'
+  );
   renderBoardGrid();
   document.getElementById('board-card').style.display = '';
   document.getElementById('rack-card').style.display = '';
   document.getElementById('moves-card').style.display = 'none';
 }
 
-function readTile(ri, ci) {
-  const ry = GRID.rowStarts[ri];
-  const cx = GRID.colStarts[ci];
-  const imgData = solverCtx.getImageData(cx, ry, GRID.cellW, GRID.cellH);
-  const d = imgData.data;
+// Returns a scaled black-on-white canvas of the letter, or null if no tile
+function scanCell(ri, ci, d, W) {
+  const { y0, y1 } = detectedRows[ri];
+  const { x0, x1 } = detectedCols[ci];
+  const cH = y1 - y0, cW = x1 - x0;
 
-  // Count dark blue pixels (played tile: R<65, G<130, B>100)
-  let darkBlue = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i] < 65 && d[i+2] > 100) darkBlue++;
-  }
-  if (darkBlue < 200) return null; // not a played tile
-
-  // Extract letter via white pixel analysis (letter is white on dark blue)
-  // White pixels: R>180, G>180, B>180 in the letter area (skip top-right score)
-  const letterPixels = [];
-  const cellW = GRID.cellW, cellH = GRID.cellH;
-  for (let py = 5; py < 66; py++) {
-    for (let px = 5; px < 72; px++) {
-      // Skip score superscript area (top-right corner)
-      if (py < 12 && px > 40) continue;
-      const idx = (py * cellW + px) * 4;
-      if (d[idx] > 180 && d[idx+1] > 180 && d[idx+2] > 180) {
-        letterPixels.push([px, py]);
-      }
+  // Count blue-dominant pixels (all player tile colors share: B > R+40, B > G+20, R < 150)
+  let bluePx = 0;
+  for (let py = 0; py < cH; py++) {
+    for (let px = 0; px < cW; px++) {
+      const i = ((y0+py) * W + (x0+px)) * 4;
+      const r=d[i], g=d[i+1], b=d[i+2];
+      if (b > r+40 && b > g+20 && r < 150) bluePx++;
     }
   }
+  // Played tile fills >28% of cell; premium squares fill far less
+  if (bluePx < cH * cW * 0.28) return null;
 
-  if (letterPixels.length < 20) return null;
-
-  // Get bounding box of white pixels
-  const xs = letterPixels.map(p=>p[0]);
-  const ys = letterPixels.map(p=>p[1]);
-  const x0 = Math.min(...xs), x1 = Math.max(...xs);
-  const y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const w = x1-x0+1, h = y1-y0+1;
-
-  // Create a descriptor from pixel density pattern
-  // Divide into a 5x5 grid and count white pixels in each zone
-  const zones = Array(25).fill(0);
-  for (const [px, py] of letterPixels) {
-    const zx = Math.min(4, Math.floor((px-x0)/Math.max(1,w)*5));
-    const zy = Math.min(4, Math.floor((py-y0)/Math.max(1,h)*5));
-    zones[zy*5+zx]++;
+  // Collect white letter pixels — letter is white text on tile background
+  const wx = [], wy = [];
+  const skipX = Math.floor(cW * 0.55);
+  const skipY = Math.floor(cH * 0.22); // top-right corner = score superscript
+  for (let py = 2; py < cH-2; py++) {
+    for (let px = 2; px < cW-2; px++) {
+      if (py < skipY && px > skipX) continue;
+      const i = ((y0+py) * W + (x0+px)) * 4;
+      if (d[i] > 175 && d[i+1] > 175 && d[i+2] > 175) { wx.push(px); wy.push(py); }
+    }
   }
+  if (wx.length < 20) return null;
 
-  // Normalize
-  const total = letterPixels.length;
-  const norm = zones.map(z => z/total);
+  // Tight bounding box around letter
+  const lx0=Math.min(...wx), lx1=Math.max(...wx);
+  const ly0=Math.min(...wy), ly1=Math.max(...wy);
+  const lw=lx1-lx0+1, lh=ly1-ly0+1;
+  const scale = Math.max(4, Math.floor(120 / Math.max(lw, lh)));
+  const pad = 12;
 
-  // Classify using hardcoded features learned from calibration
-  return classifyLetter(norm, w, h, total, letterPixels, x0, y0);
+  const c = document.createElement('canvas');
+  c.width  = lw*scale + pad*2;
+  c.height = lh*scale + pad*2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = 'black';
+  for (let k = 0; k < wx.length; k++) {
+    ctx.fillRect((wx[k]-lx0)*scale+pad, (wy[k]-ly0)*scale+pad, scale, scale);
+  }
+  return c;
 }
 
-function classifyLetter(zones, w, h, total, pixels, x0, y0) {
-  // Aspect ratio: wide letters vs tall vs square
-  const ratio = w / Math.max(1, h);
-
-  // Horizontal cross-section analysis: count white pixels per row band
-  const bands = Array(10).fill(0);
-  for (const [px, py] of pixels) {
-    const band = Math.min(9, Math.floor((py-y0)/Math.max(1,h)*10));
-    bands[band]++;
+// OCR using Tesseract.js (loaded on demand from CDN)
+async function runOCR(tiles) {
+  if (!window._tessWorker) {
+    try {
+      await new Promise((res, rej) => {
+        if (window.Tesseract) { res(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.3/tesseract.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+      window._tessWorker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
+      await window._tessWorker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        tessedit_pageseg_mode: '10'
+      });
+    } catch(e) {
+      // Tesseract unavailable — mark all as unknown
+      for (const { ri, ci } of tiles) boardState[ri][ci] = '?';
+      return;
+    }
   }
-  const bandNorm = bands.map(b => b/Math.max(1,total));
-
-  // Vertical cross-section
-  const vbands = Array(10).fill(0);
-  for (const [px, py] of pixels) {
-    const vb = Math.min(9, Math.floor((px-x0)/Math.max(1,w)*10));
-    vbands[vb]++;
+  for (const { ri, ci, canvas } of tiles) {
+    try {
+      const { data: { text } } = await window._tessWorker.recognize(canvas);
+      const letter = text.trim().replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 1);
+      boardState[ri][ci] = letter || '?';
+    } catch(e) { boardState[ri][ci] = '?'; }
   }
-  const vbandNorm = vbands.map(b => b/Math.max(1,total));
-
-  // Symmetry measures
-  const hSym = bands.slice(0,5).reduce((s,v,i) => s + Math.abs(v-bands[9-i]), 0) / total;
-  const vSym = vbands.slice(0,5).reduce((s,v,i) => s + Math.abs(v-vbands[9-i]), 0) / total;
-
-  // Center density (middle 3x3 of 5x5 grid)
-  const centerDensity = [6,7,8,11,12,13,16,17,18].reduce((s,i)=>s+zones[i],0);
-
-  // Top/bottom/left/right edge densities
-  const topDensity = [0,1,2,3,4].reduce((s,i)=>s+zones[i],0);
-  const botDensity = [20,21,22,23,24].reduce((s,i)=>s+zones[i],0);
-  const leftDensity = [0,5,10,15,20].reduce((s,i)=>s+zones[i],0);
-  const rightDensity = [4,9,14,19,24].reduce((s,i)=>s+zones[i],0);
-  const midHDensity = [10,11,12,13,14].reduce((s,i)=>s+zones[i],0);
-
-  // ── Letter scoring heuristics ────────────────────────────────────────────────
-  const scores = {};
-
-  // I: very narrow, all pixels in a column
-  scores['I'] = (ratio < 0.35 ? 3 : 0) + (vSym < 0.05 ? 1 : 0);
-
-  // O: high symmetry, hollow center, high perimeter
-  scores['O'] = (hSym < 0.08 ? 1.5 : 0) + (vSym < 0.08 ? 1.5 : 0) + (centerDensity < 0.05 ? 2 : 0);
-
-  // C: left open (low right density), curved top/bottom
-  scores['C'] = (rightDensity < 0.03 ? 3 : 0) + (leftDensity > 0.08 ? 1 : 0) + (hSym < 0.1 ? 0.5 : 0);
-
-  // G: like C but has a horizontal bar in middle-right
-  scores['G'] = (rightDensity < 0.06 && rightDensity > 0.01 ? 2 : 0) + (midHDensity > 0.06 ? 1 : 0);
-
-  // D: right curved, left straight
-  scores['D'] = (leftDensity > 0.1 ? 1 : 0) + (centerDensity > 0.1 ? 1 : 0) + (hSym < 0.08 ? 1 : 0);
-
-  // M: wide, high pixel count, symmetric, two peaks at top
-  scores['M'] = (ratio > 0.85 ? 1 : 0) + (topDensity > 0.15 ? 1 : 0) + (total > 400 ? 1 : 0) + (vSym < 0.05 ? 1 : 0);
-
-  // W: wide, high at bottom, symmetric
-  scores['W'] = (ratio > 0.85 ? 1 : 0) + (botDensity > 0.15 ? 1 : 0) + (total > 380 ? 0.5 : 0) + (vSym < 0.07 ? 1 : 0);
-
-  // E: horizontal stripes, medium width, right side empty
-  scores['E'] = (rightDensity < 0.04 ? 2 : 0) + (topDensity > 0.08 ? 1 : 0) + (botDensity > 0.08 ? 1 : 0) + (midHDensity > 0.06 ? 1 : 0);
-
-  // F: like E but no bottom bar
-  scores['F'] = (rightDensity < 0.04 ? 1.5 : 0) + (botDensity < 0.03 ? 1.5 : 0) + (topDensity > 0.1 ? 1 : 0);
-
-  // L: vertical left, horizontal bottom only
-  scores['L'] = (leftDensity > 0.1 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0) + (topDensity < 0.08 ? 0.5 : 0) + (rightDensity < 0.03 ? 1 : 0);
-
-  // J: short top, curve at bottom-right
-  scores['J'] = (topDensity < 0.06 ? 1.5 : 0) + (rightDensity > 0.05 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0);
-
-  // T: top bar, single vertical
-  scores['T'] = (topDensity > 0.15 ? 2 : 0) + (centerDensity < 0.08 ? 1 : 0) + (vSym < 0.06 ? 1 : 0);
-
-  // Y: top two diagonals meet at center, single vertical below
-  scores['Y'] = (topDensity > 0.12 ? 1 : 0) + (botDensity < 0.1 ? 1 : 0) + (centerDensity > 0.05 ? 1 : 0);
-
-  // V: like Y but opens more
-  scores['V'] = (topDensity > 0.1 ? 1 : 0) + (botDensity < 0.05 ? 1.5 : 0) + (vSym < 0.06 ? 1 : 0);
-
-  // U: open top, closed bottom
-  scores['U'] = (topDensity < 0.06 ? 1.5 : 0) + (botDensity > 0.1 ? 2 : 0) + (vSym < 0.06 ? 1 : 0);
-
-  // N: two vertical bars, diagonal
-  scores['N'] = (leftDensity > 0.08 ? 1 : 0) + (rightDensity > 0.08 ? 1 : 0) + (centerDensity > 0.05 ? 0.5 : 0);
-
-  // H: two vertical bars, horizontal cross
-  scores['H'] = (leftDensity > 0.08 ? 1 : 0) + (rightDensity > 0.08 ? 1 : 0) + (midHDensity > 0.08 ? 1.5 : 0);
-
-  // K: vertical left + diagonal arms
-  scores['K'] = (leftDensity > 0.08 ? 1.5 : 0) + (midHDensity < 0.08 ? 1 : 0);
-
-  // X: diagonal crosses
-  scores['X'] = (centerDensity > 0.08 ? 1.5 : 0) + (topDensity > 0.08 ? 0.5 : 0) + (botDensity > 0.08 ? 0.5 : 0);
-
-  // Z: top/bottom bars, diagonal
-  scores['Z'] = (topDensity > 0.1 ? 1 : 0) + (botDensity > 0.1 ? 1 : 0) + (hSym < 0.12 ? 0.5 : 0) + (vSym > 0.1 ? 1 : 0);
-
-  // A: triangle, open bottom-center
-  scores['A'] = (topDensity < 0.12 ? 1 : 0) + (centerDensity > 0.08 ? 1 : 0) + (vSym < 0.06 ? 1 : 0);
-
-  // B: left vertical, two bumps right
-  scores['B'] = (leftDensity > 0.1 ? 1.5 : 0) + (rightDensity > 0.08 ? 1 : 0) + (centerDensity > 0.05 ? 0.5 : 0);
-
-  // P: top-right bump, open bottom-right
-  scores['P'] = (leftDensity > 0.1 ? 1 : 0) + (topDensity > 0.1 ? 1 : 0) + (botDensity < 0.06 ? 1.5 : 0);
-
-  // Q: like O but with extra stroke
-  scores['Q'] = (hSym < 0.12 ? 1 : 0) + (vSym < 0.12 ? 1 : 0) + (centerDensity < 0.08 ? 1 : 0) + (botDensity > 0.05 ? 0.5 : 0);
-
-  // R: P-like top, diagonal leg
-  scores['R'] = (leftDensity > 0.1 ? 1 : 0) + (topDensity > 0.08 ? 1 : 0) + (botDensity > 0.05 ? 1 : 0) + (rightDensity > 0.03 ? 0.5 : 0);
-
-  // S: no straight lines, curved top and bottom
-  scores['S'] = (leftDensity < 0.06 ? 1 : 0) + (rightDensity < 0.06 ? 1 : 0) + (total < 350 ? 0.5 : 0);
-
-  // Return best match
-  const best = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  return best[0][1] > 0.5 ? best[0][0] : '?';
 }
 
 // ── RENDER BOARD ──────────────────────────────────────────────────────────────
@@ -1456,20 +1499,24 @@ function getCrossWord(board, r, c, ch, horiz) {
 }
 
 // ── SCORING ───────────────────────────────────────────────────────────────────
-function scoreMove(board, newCellSet, word, startR, startC, horiz) {
+function scoreMove(board, newCellSet, blankCellSet, word, startR, startC, horiz) {
   let main = 0, wordMult = 1;
   const wLen = word.length;
 
   for (let i = 0; i < wLen; i++) {
-    const r = horiz ? startR : startR + i;
-    const c = horiz ? startC + i : startC;
+    const r  = horiz ? startR : startR + i;
+    const c  = horiz ? startC + i : startC;
     const ch = word[i];
-    const isNew = newCellSet.has(r * 15 + c);
-    const prem  = PREMIUM[r][c];
-    let lv = WWF_VALUES[ch] || 0;
-    if (isNew) {
+    const isNew   = newCellSet.has(r * 15 + c);
+    const isBlank = blankCellSet.has(r * 15 + c);
+    const prem    = PREMIUM[r][c];
+    // Blank tiles always score 0 — no face value, no letter multiplier
+    let lv = isBlank ? 0 : (WWF_VALUES[ch] || 0);
+    if (isNew && !isBlank) {
       if (prem === '2L') lv *= 2;
       if (prem === '3L') lv *= 3;
+    }
+    if (isNew) {
       if (prem === '2W' || prem === 'CT') wordMult *= 2;
       if (prem === '3W') wordMult *= 3;
     }
@@ -1479,23 +1526,25 @@ function scoreMove(board, newCellSet, word, startR, startC, horiz) {
 
   // Cross-word scores
   for (const cellIdx of newCellSet) {
-    const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
+    const r  = Math.floor(cellIdx / 15), c = cellIdx % 15;
     const ch = horiz ? word[c - startC] : word[r - startR];
+    const isBlank = blankCellSet.has(cellIdx);
     const cross = getCrossWord(board, r, c, ch, horiz);
     if (!cross) continue;
     const prem = PREMIUM[r][c];
     let crossScore = 0, crossMult = 1;
     if (prem === '2W' || prem === 'CT') crossMult *= 2;
     if (prem === '3W') crossMult *= 3;
+    // Score all letters in the cross-word at face value first
     for (const cc of cross) crossScore += (WWF_VALUES[cc] || 0);
-    // The new letter's premium was applied to its face value above; for the cross
-    // we apply letter-multiplier separately
-    const lv = WWF_VALUES[ch] || 0;
-    let lvCross = lv;
-    if (prem === '2L') lvCross *= 2;
-    if (prem === '3L') lvCross *= 3;
-    // Replace face value of ch with multiplied value in cross score
-    crossScore = crossScore - lv + lvCross;
+    // Correct the new tile's contribution: blank = 0, normal = face × letter mult
+    const faceLv = WWF_VALUES[ch] || 0;
+    let newTileLv = isBlank ? 0 : faceLv;
+    if (!isBlank) {
+      if (prem === '2L') newTileLv *= 2;
+      if (prem === '3L') newTileLv *= 3;
+    }
+    crossScore = crossScore - faceLv + newTileLv;
     crossScore *= crossMult;
     main += crossScore;
   }
@@ -1618,9 +1667,15 @@ function findAllMoves(board, rack) {
           const startR = horiz ? line : start;
           const startC = horiz ? start : line;
 
-          for (const { word, newPositions } of candidates) {
+          for (const { word, newPositions, blankPositions } of candidates) {
             // Convert dot-position offsets → grid indices
             const newCellSet = new Set(newPositions.map(pos => {
+              const r = horiz ? line : start + pos;
+              const c = horiz ? start + pos : line;
+              return r * 15 + c;
+            }));
+            // Blank cell grid indices (score 0, no letter multiplier)
+            const blankCellSet = new Set(blankPositions.map(pos => {
               const r = horiz ? line : start + pos;
               const c = horiz ? start + pos : line;
               return r * 15 + c;
@@ -1640,12 +1695,13 @@ function findAllMoves(board, rack) {
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const score = scoreMove(board, newCellSet, word, startR, startC, horiz);
+            const score = scoreMove(board, newCellSet, blankCellSet, word, startR, startC, horiz);
             const cells = [];
             for (const cellIdx of newCellSet) {
               const r = Math.floor(cellIdx / 15), c = cellIdx % 15;
               const ch = horiz ? word[c - start] : word[r - start];
-              cells.push([r, c, ch]);
+              const isBlank = blankCellSet.has(cellIdx);
+              cells.push([r, c, ch, isBlank]);
             }
             results.push({ word, score, row: startR, col: startC, dir: horiz ? 'H' : 'V', cells, isBingo: newCellSet.size === 7 });
           }
@@ -1660,7 +1716,7 @@ function findAllMoves(board, rack) {
 
 // Find all valid words matching pattern using rack letters.
 // pattern: array of char or '.' for unknowns.
-// Returns [{word, newPositions}] where newPositions are the dot-slot indices filled.
+// Returns [{word, newPositions, blankPositions}] where blankPositions are dot-slot indices filled by a blank tile.
 function findCandidates(pattern, rackArr) {
   const results    = [];
   const dotPos     = pattern.map((ch, i) => ch === '.' ? i : -1).filter(i => i >= 0);
@@ -1669,18 +1725,20 @@ function findCandidates(pattern, rackArr) {
 
   if (numDots === 0) {
     const word = pattern.join('');
-    if (WORDS_SET.has(word)) results.push({ word, newPositions: [] });
+    if (WORDS_SET.has(word)) results.push({ word, newPositions: [], blankPositions: [] });
     return results;
   }
 
-  function fill(dotIdx, rackPool, chosen) {
+  // chosen: array of letters; usedBlank: parallel array of booleans
+  function fill(dotIdx, rackPool, chosen, usedBlank) {
     if (dotIdx === numDots) {
       const wordArr = [...pattern];
       for (let i = 0; i < numDots; i++) wordArr[dotPos[i]] = chosen[i];
       const word = wordArr.join('');
       if (!wordSeen.has(word) && WORDS_SET.has(word)) {
         wordSeen.add(word);
-        results.push({ word, newPositions: [...dotPos] });
+        const blankPositions = dotPos.filter((_, i) => usedBlank[i]);
+        results.push({ word, newPositions: [...dotPos], blankPositions });
       }
       return;
     }
@@ -1691,21 +1749,21 @@ function findCandidates(pattern, rackArr) {
       if (l === '?' || triedLetters.has(l)) continue;
       triedLetters.add(l);
       rackPool.splice(i, 1);
-      fill(dotIdx + 1, rackPool, [...chosen, l]);
+      fill(dotIdx + 1, rackPool, [...chosen, l], [...usedBlank, false]);
       rackPool.splice(i, 0, l);
     }
-    // Blank tile
+    // Blank tile — plays as any letter but scores 0
     const blankIdx = rackPool.indexOf('?');
     if (blankIdx !== -1) {
       rackPool.splice(blankIdx, 1);
       for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-        fill(dotIdx + 1, rackPool, [...chosen, letter]);
+        fill(dotIdx + 1, rackPool, [...chosen, letter], [...usedBlank, true]);
       }
       rackPool.splice(blankIdx, 0, '?');
     }
   }
 
-  fill(0, [...rackArr], []);
+  fill(0, [...rackArr], [], []);
   return results;
 }
 
