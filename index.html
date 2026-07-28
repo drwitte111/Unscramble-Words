@@ -1185,7 +1185,7 @@ async function processImage(img) {
   // 1. Find the best-fit spacing and phase from ALL found gaps (not just consecutive).
   // 2. Snap every found gap to the nearest grid line.
   // 3. Fill in any missing grid lines by extrapolation.
-  function fitGrid(gaps, nominalSpacing = 77, tol = 14) {
+  function fitGrid(gaps, nominalSpacing = 77, tol = 14, applyRowOffset = false) {
     if (gaps.length < 4) return null;
 
     // Score each pair spacing to find the true cell spacing
@@ -1216,9 +1216,8 @@ async function processImage(img) {
     if (snapped.size < 4) return null;
 
     // Determine which 16 consecutive grid lines form the board.
-    // The algorithm biases toward starting one row too late because the last detected
-    // gap is the board's second-to-last boundary (board extends one more step below).
-    // Subtract 1 from the best window origin to correct this systematic offset.
+    // For rows: the algorithm biases +1 because the last detected gap is the board's
+    // second-to-last boundary. Apply a -1 correction for rows only.
     const ns = [...snapped].sort((a,b)=>a-b);
     let bestOriginN = ns[0];
     let bestHits = 0;
@@ -1227,7 +1226,7 @@ async function processImage(img) {
       for (let i = 0; i <= 15; i++) if (snapped.has(anchorN + i)) hits++;
       if (hits > bestHits) { bestHits = hits; bestOriginN = anchorN; }
     }
-    bestOriginN -= 1; // correct the systematic off-by-one
+    if (applyRowOffset) bestOriginN -= 1;
 
     // Generate the 16 boundary positions
     const grid = [];
@@ -1239,8 +1238,8 @@ async function processImage(img) {
   const gapsX = findGapCenters(false);
 
   // Try robust fit first; fall back to simple consecutive run
-  let allY = fitGrid(gapsY);
-  let allX = fitGrid(gapsX);
+  let allY = fitGrid(gapsY, 77, 14, true);   // rows: apply offset correction
+  let allX = fitGrid(gapsX, 77, 14, false);  // cols: no offset needed
 
   // If robust fit fails, fall back to longest consecutive run + extrapolation
   if (!allY) {
