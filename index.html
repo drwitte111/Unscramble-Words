@@ -1215,19 +1215,19 @@ async function processImage(img) {
     }
     if (snapped.size < 4) return null;
 
-    // Determine which 16 consecutive grid lines form the board
-    // Find the first gap that's in the board area
+    // Determine which 16 consecutive grid lines form the board.
+    // The algorithm biases toward starting one row too late because the last detected
+    // gap is the board's second-to-last boundary (board extends one more step below).
+    // Subtract 1 from the best window origin to correct this systematic offset.
     const ns = [...snapped].sort((a,b)=>a-b);
-    // The board's 16 lines span 15 cells; find the run of 16 consecutive indices
-    // Try anchoring at the smallest found gap that gives 16 lines with enough hits
     let bestOriginN = ns[0];
     let bestHits = 0;
     for (const anchorN of ns) {
-      // Board spans anchorN to anchorN+15
       let hits = 0;
       for (let i = 0; i <= 15; i++) if (snapped.has(anchorN + i)) hits++;
       if (hits > bestHits) { bestHits = hits; bestOriginN = anchorN; }
     }
+    bestOriginN -= 1; // correct the systematic off-by-one
 
     // Generate the 16 boundary positions
     const grid = [];
@@ -1735,9 +1735,11 @@ function findCandidates(pattern, rackArr) {
       const wordArr = [...pattern];
       for (let i = 0; i < numDots; i++) wordArr[dotPos[i]] = chosen[i];
       const word = wordArr.join('');
-      if (!wordSeen.has(word) && WORDS_SET.has(word)) {
-        wordSeen.add(word);
-        const blankPositions = dotPos.filter((_, i) => usedBlank[i]);
+      const blankPositions = dotPos.filter((_, i) => usedBlank[i]);
+      // Dedup key includes which positions are blanks — same word played differently scores differently
+      const key = word + '|' + blankPositions.join(',');
+      if (!wordSeen.has(key) && WORDS_SET.has(word)) {
+        wordSeen.add(key);
         results.push({ word, newPositions: [...dotPos], blankPositions });
       }
       return;
