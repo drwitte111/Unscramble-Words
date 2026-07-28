@@ -1265,7 +1265,7 @@ async function processImage(img) {
 
   // Shift row grid up by one cell (rows only, not columns)
   const rowSp = allY[1] - allY[0];
-  allY = allY.map(g => g + rowSp);
+  allY = allY.map(g => g - rowSp);
 
   const ins = 3;
   detectedRows = Array.from({length:15}, (_,i) => ({ y0: allY[i]+ins,   y1: allY[i+1]-ins }));
@@ -1593,26 +1593,29 @@ function findAllMoves(board, rack) {
   // Search both horizontal and vertical
   for (const horiz of [true, false]) {
     for (let line = 0; line < 15; line++) {
-      // Extract this row/col
-      const existing = [];  // {pos, letter}
+      // A line is worth searching if it has existing tiles OR is adjacent to existing tiles
       let hasAnchor = isEmpty && line === 7;
       for (let pos = 0; pos < 15; pos++) {
         const r = horiz ? line : pos;
         const c = horiz ? pos : line;
-        if (board[r][c]) existing.push({ pos, letter: board[r][c] });
-        if (!isEmpty) {
-          // Check if any adjacent cell (perpendicular) has a tile
-          const adjR1 = horiz ? line - 1 : line;
-          const adjC1 = horiz ? pos : line - 1;
-          const adjR2 = horiz ? line + 1 : line;
-          const adjC2 = horiz ? pos : line + 1;
-          if (
-            (adjR1 >= 0 && adjC1 >= 0 && board[adjR1][adjC1]) ||
-            (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])
-          ) hasAnchor = true;
-        }
+        if (board[r][c]) { hasAnchor = true; break; }
+        // Check perpendicular neighbors
+        const adjR1 = horiz ? line - 1 : line;
+        const adjC1 = horiz ? pos : line - 1;
+        const adjR2 = horiz ? line + 1 : line;
+        const adjC2 = horiz ? pos : line + 1;
+        if ((adjR1 >= 0 && adjC1 >= 0 && board[adjR1][adjC1]) ||
+            (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])) { hasAnchor = true; break; }
       }
-      if (!hasAnchor && !existing.length) continue;
+      if (!hasAnchor) continue;
+
+      // Collect existing tiles on this line
+      const existing = [];
+      for (let pos = 0; pos < 15; pos++) {
+        const r = horiz ? line : pos;
+        const c = horiz ? pos : line;
+        if (board[r][c]) existing.push({ pos, letter: board[r][c] });
+      }
 
       // For each possible start position and length
       for (let start = 0; start < 15; start++) {
@@ -1634,25 +1637,27 @@ function findAllMoves(board, rack) {
           if (newSlotsNeeded < 1) continue; // must place at least 1 new tile
           if (newSlotsNeeded > fixed.length + blanks) continue;
 
-          // Must touch an existing tile or anchor
+          // Must touch an existing tile: either overlaps a board letter OR
+          // at least one new tile is adjacent to an existing tile perpendicularly
           const touchesBoard = boardLettersInRange.length > 0;
-          const touchesPerp  = (() => {
+          let touchesPerp = false;
+          if (!touchesBoard) {
             for (let pos = start; pos <= end; pos++) {
               const r = horiz ? line : pos;
               const c = horiz ? pos : line;
-              if (board[r][c]) continue; // already on board
+              if (board[r][c]) continue; // board letter, not a new tile
               const adjR1 = horiz ? line - 1 : line;
               const adjC1 = horiz ? pos : line - 1;
               const adjR2 = horiz ? line + 1 : line;
               const adjC2 = horiz ? pos : line + 1;
               if ((adjR1 >= 0 && adjC1 >= 0 && board[adjR1][adjC1]) ||
-                  (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])) return true;
+                  (adjR2 < 15 && adjC2 < 15 && board[adjR2][adjC2])) {
+                touchesPerp = true; break;
+              }
             }
-            return false;
-          })();
+          }
           if (!touchesBoard && !touchesPerp) {
             if (!isEmpty) continue;
-            // Empty board: must cover center (7,7)
             const coversCtr = horiz ? (line === 7 && start <= 7 && end >= 7)
                                     : (line === 7 && start <= 7 && end >= 7);
             if (!coversCtr) continue;
@@ -1661,6 +1666,21 @@ function findAllMoves(board, rack) {
           // Build the "pattern" for this slot: known chars from board, '.' for unknowns
           const pattern = Array(len).fill('.');
           for (const e of boardLettersInRange) pattern[e.pos - start] = e.letter;
+
+          // Quick pre-filter: count how many of each letter the pattern needs from rack
+          // If the rack can't supply even the fixed letters needed, skip
+          const rackFreq = {};
+          for (const l of rackArr) rackFreq[l] = (rackFreq[l] || 0) + 1;
+          let preOk = true;
+          const needed = {};
+          for (const ch of pattern) {
+            if (ch === '.') continue;
+            // Board letters don't come from rack — already handled
+          }
+          // Count unknown slots vs rack size
+          const dotCount = pattern.filter(c => c === '.').length;
+          if (dotCount > rackArr.length) { preOk = false; }
+          if (!preOk) continue;
 
           // Find all words that fit this pattern using rack
           const candidates = findCandidates(pattern, rackArr);
