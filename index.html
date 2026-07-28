@@ -1215,15 +1215,8 @@ async function processImage(img) {
     }
     if (snapped.size < 4) return null;
 
-    // Find the 16-line window with the most detected gaps
-    const ns = [...snapped].sort((a,b)=>a-b);
-    let bestOriginN = ns[0];
-    let bestHits = 0;
-    for (const anchorN of ns) {
-      let hits = 0;
-      for (let i = 0; i <= 15; i++) if (snapped.has(anchorN + i)) hits++;
-      if (hits > bestHits) { bestHits = hits; bestOriginN = anchorN; }
-    }
+    // The window-maximization biases one row low; add 1 to correct.
+    bestOriginN += 1;
 
     // Generate the 16 boundary positions
     const grid = [];
@@ -1262,10 +1255,6 @@ async function processImage(img) {
     setSolverStatus('Could not detect board grid. Make sure the full board is visible in the screenshot.', 'error');
     showProgress(false); return;
   }
-
-  // Shift row grid up by one cell to correct systematic offset
-  const rowSp = allY[1] - allY[0];
-  allY = allY.map(g => g - rowSp);
 
   const ins = 3;
   detectedRows = Array.from({length:15}, (_,i) => ({ y0: allY[i]+ins,   y1: allY[i+1]-ins }));
