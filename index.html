@@ -1227,7 +1227,7 @@ async function processImage(img) {
 
     // Generate the 16 boundary positions
     const grid = [];
-    for (let i = 0; i <= 15; i++) grid.push(bestOriginN * sp + bestPhase + i * sp);
+    for (let i = 0; i <= 15; i++) grid.push((bestOriginN - 1) * sp + bestPhase + i * sp);
     return grid;
   }
 
