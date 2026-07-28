@@ -1170,27 +1170,91 @@ async function processImage(img) {
     return best;
   }
 
+  // Robust grid fitting — tolerates missing gaps caused by tile rows blocking white lines.
+  // 1. Find the best-fit spacing and phase from ALL found gaps (not just consecutive).
+  // 2. Snap every found gap to the nearest grid line.
+  // 3. Fill in any missing grid lines by extrapolation.
+  function fitGrid(gaps, nominalSpacing = 77, tol = 14) {
+    if (gaps.length < 4) return null;
+
+    // Score each pair spacing to find the true cell spacing
+    const spacings = [];
+    for (let i = 0; i < gaps.length; i++)
+      for (let j = i+1; j < gaps.length; j++) {
+        const diff = gaps[j] - gaps[i];
+        const n = Math.round(diff / nominalSpacing);
+        if (n >= 1 && n <= 15 && Math.abs(diff - n * nominalSpacing) < tol)
+          spacings.push(diff / n);
+      }
+    if (spacings.length < 2) return null;
+    const sp = Math.round(spacings.reduce((a,b)=>a+b,0) / spacings.length);
+
+    // Vote on grid phase (position mod sp)
+    const votes = new Float32Array(sp + 1);
+    for (const g of gaps) votes[Math.round(g % sp)]++;
+    let bestPhase = 0;
+    for (let i = 1; i <= sp; i++) if (votes[i] > votes[bestPhase]) bestPhase = i;
+
+    // Snap every found gap to its nearest grid line
+    const snapped = new Set();
+    for (const g of gaps) {
+      const n = Math.round((g - bestPhase) / sp);
+      const gridLine = bestPhase + n * sp;
+      if (Math.abs(g - gridLine) < tol) snapped.add(n);
+    }
+    if (snapped.size < 4) return null;
+
+    // Determine which 16 consecutive grid lines form the board
+    // Find the first gap that's in the board area
+    const ns = [...snapped].sort((a,b)=>a-b);
+    // The board's 16 lines span 15 cells; find the run of 16 consecutive indices
+    // Try anchoring at the smallest found gap that gives 16 lines with enough hits
+    let bestOriginN = ns[0];
+    let bestHits = 0;
+    for (const anchorN of ns) {
+      // Board spans anchorN to anchorN+15
+      let hits = 0;
+      for (let i = 0; i <= 15; i++) if (snapped.has(anchorN + i)) hits++;
+      if (hits > bestHits) { bestHits = hits; bestOriginN = anchorN; }
+    }
+
+    // Generate the 16 boundary positions
+    const grid = [];
+    for (let i = 0; i <= 15; i++) grid.push(bestOriginN * sp + bestPhase + i * sp);
+    return grid;
+  }
+
   const gapsY = findGapCenters(true);
   const gapsX = findGapCenters(false);
-  const seqY  = longestRegularRun(gapsY);
-  const seqX  = longestRegularRun(gapsX);
 
-  if (seqY.length < 8 || seqX.length < 8) {
+  // Try robust fit first; fall back to simple consecutive run
+  let allY = fitGrid(gapsY);
+  let allX = fitGrid(gapsX);
+
+  // If robust fit fails, fall back to longest consecutive run + extrapolation
+  if (!allY) {
+    const seqY = longestRegularRun(gapsY);
+    if (seqY.length >= 4) {
+      const avY = Math.round(seqY.reduce((s,_,i)=>i?s+seqY[i]-seqY[i-1]:s,0)/Math.max(1,seqY.length-1));
+      allY = [seqY[0]-avY,...seqY,seqY[seqY.length-1]+avY];
+      while (allY.length > 16) allY.shift();
+      while (allY.length < 16) allY.unshift(allY[0]-avY);
+    }
+  }
+  if (!allX) {
+    const seqX = longestRegularRun(gapsX);
+    if (seqX.length >= 4) {
+      const avX = Math.round(seqX.reduce((s,_,i)=>i?s+seqX[i]-seqX[i-1]:s,0)/Math.max(1,seqX.length-1));
+      allX = seqX.length >= 16 ? seqX : [seqX[0]-avX,...seqX,seqX[seqX.length-1]+avX];
+      while (allX.length > 16) allX.pop();
+      while (allX.length < 16) allX.push(allX[allX.length-1]+avX);
+    }
+  }
+
+  if (!allY || !allX || allY.length < 16 || allX.length < 16) {
     setSolverStatus('Could not detect board grid. Make sure the full board is visible in the screenshot.', 'error');
     showProgress(false); return;
   }
-
-  // Average spacing
-  const avY = Math.round(seqY.reduce((s,_,i)=>i?s+seqY[i]-seqY[i-1]:s,0) / Math.max(1, seqY.length-1));
-  const avX = Math.round(seqX.reduce((s,_,i)=>i?s+seqX[i]-seqX[i-1]:s,0) / Math.max(1, seqX.length-1));
-
-  // Extrapolate to 16 boundary gaps each
-  const allY = [seqY[0] - avY, ...seqY, seqY[seqY.length-1] + avY];
-  const allX = seqX.length >= 16 ? seqX : [seqX[0] - avX, ...seqX, seqX[seqX.length-1] + avX];
-  while (allY.length > 16) allY.shift();
-  while (allY.length < 16) allY.unshift(allY[0] - avY);
-  while (allX.length > 16) allX.pop();
-  while (allX.length < 16) allX.push(allX[allX.length-1] + avX);
 
   const ins = 3;
   detectedRows = Array.from({length:15}, (_,i) => ({ y0: allY[i]+ins,   y1: allY[i+1]-ins }));
